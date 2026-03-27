@@ -47,7 +47,7 @@ function StudentDiscussion() {
       setErrors({})
       setShowForm(false)
       setSuccessMsg('Post created successfully!')
-      addActivity({ type: 'Discussion', description: `Posted: ${res.data.title}` })
+      addActivity({ type: 'Discussion', description: `Posted: ${res.data.title}`, date: new Date().toISOString() })
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to create post')

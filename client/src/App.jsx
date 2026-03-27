@@ -7,7 +7,7 @@ import StudentDiscussion from './pages/discussion/StudentDiscussion'
 import AdminDiscussion from './pages/discussion/AdminDiscussion'
 import ResourceSharing from './pages/resources/ResourceSharing'
 import HelpRequest from './pages/helprequest/HelpRequest'
-import AcademicProgress from './pages/progress/AcademicProgress'
+import ProgressTabs from './pages/progress/ProgressTabs'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
 
@@ -42,7 +42,7 @@ function App() {
                 <Route path="/discussion"    element={<StudentDiscussion />} />
                 <Route path="/resources"     element={<ResourceSharing />} />
                 <Route path="/help-request"  element={<HelpRequest />} />
-                <Route path="/progress"      element={<AcademicProgress />} />
+                <Route path="/progress"      element={<ProgressTabs />} />
 
                 {/* Admin-only route */}
                 <Route element={<AdminRoute />}>
