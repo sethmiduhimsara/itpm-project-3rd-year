@@ -2,7 +2,7 @@ import { useMemo, useState, createElement } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3, BookOpen, HelpCircle, LayoutDashboard,
-  BellDot, Menu, MessagesSquare, Search, Shield, X, LogOut,
+  BellDot, Menu, MessagesSquare, Search, Shield, X, LogOut, ChevronDown,
 } from 'lucide-react'
 import { useNotifications } from './contexts/NotificationContext'
 import { useAuth } from './contexts/AuthContext'
@@ -29,11 +29,56 @@ function SidebarLink({ to, label, icon: Icon, active, onNavigate }) {
   )
 }
 
+function DropdownLink({ label, icon: Icon, active, items, activeDropdown, onToggle, onNavigate }) {
+  const isOpen = activeDropdown === label
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <button
+        className={`sidebarLink ${active ? 'sidebarLinkActive' : ''}`}
+        onClick={() => onToggle(label)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          width: '100%',
+          padding: '10px 14px',
+          marginBottom: '4px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {createElement(Icon, { size: 18 })}
+          <span>{label}</span>
+        </div>
+        {createElement(ChevronDown, { size: 14, style: { transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' } })}
+      </button>
+      {isOpen && (
+        <div style={{ paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {items.map(item => (
+            <Link
+              key={item.to}
+              to={item.to}
+              className="sidebarLink"
+              style={{ fontSize: '13px', paddingLeft: '10px' }}
+              onClick={onNavigate}
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DashboardLayout() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
+  const [activeDropdown, setActiveDropdown] = useState(null)
   const { notifications, unreadCount, markAllRead } = useNotifications()
   const { user, logout, isAdmin } = useAuth()
 
@@ -59,9 +104,15 @@ function DashboardLayout() {
       { to: '/discussion',    label: 'Discussion',   icon: MessagesSquare },
       { to: '/resources',     label: 'Resources',    icon: BookOpen },
       { to: '/help-request',  label: 'Help Requests',icon: HelpCircle },
-      { to: '/progress',      label: 'My Progress',  icon: BarChart3 },
     ]
   }, [isAdmin])
+
+  const progressDropdownItems = [
+    { to: '/progress', label: 'Dashboard' },
+    { to: '/progress?tab=history', label: 'Activity History' },
+    { to: '/progress?tab=badges', label: 'Badges' },
+    { to: '/progress?tab=progress', label: 'Progress' },
+  ]
 
   return (
     <div className={`dashboardShell ${sidebarOpen ? 'sidebarOpen' : ''}`}>
@@ -85,6 +136,19 @@ function DashboardLayout() {
               onNavigate={() => setSidebarOpen(false)}
             />
           ))}
+
+          {/* My Progress dropdown - only for students */}
+          {!isAdmin && (
+            <DropdownLink
+              label="My Progress"
+              icon={BarChart3}
+              active={pathname.startsWith('/progress')}
+              items={progressDropdownItems}
+              activeDropdown={activeDropdown}
+              onToggle={setActiveDropdown}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          )}
         </nav>
 
         <div className="sidebarFooter">

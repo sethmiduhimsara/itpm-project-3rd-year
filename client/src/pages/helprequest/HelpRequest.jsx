@@ -52,6 +52,7 @@ function HelpRequest() {
       setErrors({})
       setShowForm(false)
       setSuccessMsg('Help request posted!')
+      addActivity({ type: 'Help Received', description: `Posted help request: ${form.subject} — ${form.topic}`, date: new Date().toISOString() })
       setTimeout(() => setSuccessMsg(''), 3000)
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to post help request')
