@@ -94,19 +94,22 @@ function DashboardLayout() {
     navigate('/login', { replace: true })
   }
 
-  const navLinks = useMemo(() => {
-    // Admin sees only Admin Panel
+const navLinks = useMemo(() => {
     if (isAdmin) {
-      return [
-        { to: '/admin/discussion', label: 'Admin Panel', icon: Shield }
-      ]
+      return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
     }
-    // Students see regular navigation
     return [
-      { to: '/discussion', label: 'Discussion', icon: MessagesSquare },
-      { to: '/resources', label: 'Resources', icon: BookOpen },
-    ]
-  }, [isAdmin])
+      { to: "/resources", label: "Resources", icon: BookOpen },
+      { to: "/help-request", label: "Help Requests", icon: HelpCircle },
+    ];
+  }, [isAdmin]);
+
+  const discussionDropdownItems = [
+    { to: "/discussion?view=feed", label: "Community Feed" },
+    { to: "/discussion?view=thread", label: "Thread View" },
+    { to: "/discussion?view=mine", label: "My Posts" },
+    { to: "/discussion?view=create", label: "Create Post" },
+  ];
 
   const progressDropdownItems = [
     { to: '/progress', label: 'Dashboard' },
