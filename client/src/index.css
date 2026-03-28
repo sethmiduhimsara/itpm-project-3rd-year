@@ -116,7 +116,7 @@ select {
 .sidebarNav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-top: 8px;
 }
 
@@ -124,6 +124,7 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 42px;
   padding: 10px 12px;
   border-radius: 14px;
   text-decoration: none;
@@ -143,6 +144,102 @@ select {
   border-color: rgba(var(--accent2-rgb), 0.55);
   color: var(--text);
   box-shadow: 0 10px 30px rgba(var(--accent-rgb), 0.14);
+}
+
+.sidebarDropdownGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebarChevron {
+  transition: transform 180ms ease;
+}
+
+.sidebarSubmenu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  margin-left: 14px;
+  padding: 4px 0 4px 12px;
+  border-left: 1px solid rgba(var(--accent2-rgb), 0.18);
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transform: translateY(-3px);
+  pointer-events: none;
+  transition: max-height 220ms ease, opacity 180ms ease, transform 180ms ease;
+}
+
+.sidebarSubmenuOpen {
+  max-height: 260px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.sidebarSubLink {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  color: rgba(234, 232, 255, 0.78);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  line-height: 1.2;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease, box-shadow 160ms ease;
+}
+
+.sidebarSubLink:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(var(--accent2-rgb), 0.32);
+  color: var(--text);
+  transform: translateX(2px);
+}
+
+.sidebarSubLinkActive {
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.30), rgba(var(--accent2-rgb), 0.16));
+  border-color: rgba(var(--accent2-rgb), 0.68);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 rgba(var(--accent2-rgb), 0.95), 0 0 0 1px rgba(var(--accent2-rgb), 0.18), 0 12px 24px rgba(var(--accent-rgb), 0.16);
+}
+
+.sidebarSubLinkAction {
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent2-rgb), 0.12));
+  color: rgba(236, 251, 255, 0.98);
+  font-weight: 700;
+}
+
+.sidebarSubLinkAction:hover {
+  border-color: rgba(var(--accent2-rgb), 0.65);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.3), rgba(var(--accent2-rgb), 0.2));
+  box-shadow: 0 10px 20px rgba(var(--accent-rgb), 0.2);
+}
+
+.sidebarActionBadge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: rgba(241, 253, 255, 0.95);
+  border: 1px solid rgba(var(--accent2-rgb), 0.6);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: rgba(var(--accent2-rgb), 0.18);
+}
+
+.sidebarSubLink:focus-visible,
+.sidebarLink:focus-visible {
+  outline: 2px solid rgba(var(--accent2-rgb), 0.65);
+  outline-offset: 2px;
 }
 
 .sidebarFooter {
@@ -385,6 +482,15 @@ select {
 
   .mobileMenuBtn {
     display: inline-flex;
+  }
+
+  .sidebarSubLink {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .sidebarLink {
+    min-height: 44px;
   }
 
   .dashboardShell.sidebarOpen .sidebar {
