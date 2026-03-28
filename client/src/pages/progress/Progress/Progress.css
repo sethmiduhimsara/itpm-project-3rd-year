@@ -1,25 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-
-:root {
-  --bg: #0a0e1a;
-  --surface: #111827;
-  --surface2: #1a2235;
-  --border: rgba(255, 255, 255, 0.07);
-  --accent: #4f8ef7;
-  --accent2: #a78bfa;
-  --accent3: #34d399;
-  --accent4: #fb923c;
-  --text: #f0f4ff;
-  --muted: #6b7a99;
-}
-
 /* ── Layout ── */
 .progress-wrapper {
-  margin-left: 230px;
+  margin-left: 10px;
   padding: 32px 36px;
   background: var(--bg);
   min-height: 100vh;
-  font-family: 'DM Sans', sans-serif;
+  font-family: inherit;
   color: var(--text);
 }
 
@@ -32,7 +17,6 @@
 }
 
 .prog-title {
-  font-family: 'Syne', sans-serif;
   font-size: 26px;
   font-weight: 800;
 }
@@ -63,7 +47,6 @@
   transition: all 0.2s;
   border: none;
   background: transparent;
-  font-family: 'DM Sans', sans-serif;
 }
 
 .period-tab.active {
@@ -126,7 +109,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Syne', sans-serif;
   font-size: 13px;
   font-weight: 800;
 }
@@ -157,7 +139,6 @@
 }
 
 .prog-card-title {
-  font-family: 'Syne', sans-serif;
   font-size: 15px;
   font-weight: 700;
   margin-bottom: 20px;

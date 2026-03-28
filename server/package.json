@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "verify:discussion": "node scripts/verifyDiscussionFlow.js",
+    "migrate:post-ownerid:dry": "node scripts/backfillPostOwnerId.js --dry-run",
+    "migrate:post-ownerid:apply": "node scripts/backfillPostOwnerId.js --apply"
   },
   "keywords": [],
   "author": "",

@@ -1,25 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
-
-:root {
-  --bg: #0a0e1a;
-  --surface: #111827;
-  --surface2: #1a2235;
-  --border: rgba(255, 255, 255, 0.07);
-  --accent: #4f8ef7;
-  --accent2: #a78bfa;
-  --accent3: #34d399;
-  --accent4: #fb923c;
-  --text: #f0f4ff;
-  --muted: #6b7a99;
-}
-
-/* ── Layout ── */
+── Layout ──
 .badges-wrapper {
-  margin-left: 230px;
+  margin-left: 10px;
   padding: 32px 36px;
   background: var(--bg);
   min-height: 100vh;
-  font-family: 'DM Sans', sans-serif;
+  font-family: inherit;
   color: var(--text);
 }
 
@@ -32,7 +17,6 @@
 }
 
 .badges-title {
-  font-family: 'Syne', sans-serif;
   font-size: 26px;
   font-weight: 800;
 }
@@ -109,7 +93,6 @@
 .level-info { flex: 1; }
 
 .level-name {
-  font-family: 'Syne', sans-serif;
   font-size: 22px;
   font-weight: 800;
   background: linear-gradient(135deg, var(--accent2), var(--accent));
@@ -134,7 +117,7 @@
   margin-bottom: 6px;
 }
 
-.xp-bar-label strong { color: var(--accent2); font-family: 'Syne', sans-serif; }
+.xp-bar-label strong { color: var(--accent2); font-family: inherit; }
 
 .xp-track {
   height: 10px;
@@ -219,7 +202,6 @@
 .badge-stat:nth-child(4) { animation-delay: 0.20s; }
 
 .bs-val {
-  font-family: 'Syne', sans-serif;
   font-size: 26px;
   font-weight: 800;
   line-height: 1;
