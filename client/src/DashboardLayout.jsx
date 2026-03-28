@@ -1,4 +1,4 @@
-import { useMemo, useState, createElement } from "react";
+import { useMemo, useState, useEffect, createElement } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -8,6 +8,7 @@ import {
   BellDot,
   Menu,
   MessagesSquare,
+  Plus,
   Search,
   Shield,
   X,
@@ -41,6 +42,20 @@ function SidebarLink({ to, label, icon: Icon, active, onNavigate }) {
   );
 }
 
+function isRouteMatch(to, pathname, search) {
+  const [targetPath, targetQuery = ""] = String(to).split("?");
+  if (pathname !== targetPath) return false;
+  if (!targetQuery) return true;
+
+  const expectedParams = new URLSearchParams(targetQuery);
+  const currentParams = new URLSearchParams(search);
+
+  for (const [key, value] of expectedParams.entries()) {
+    if (currentParams.get(key) !== value) return false;
+  }
+  return true;
+}
+
 function DropdownLink({
   label,
   icon: Icon,
@@ -49,23 +64,24 @@ function DropdownLink({
   activeDropdown,
   onToggle,
   onNavigate,
+  isSubItemActive,
 }) {
   const isOpen = activeDropdown === label;
+  const menuId = `${label.toLowerCase().replace(/\s+/g, "-")}-submenu`;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div className="sidebarDropdownGroup">
       <button
+        type="button"
         className={`sidebarLink ${active ? "sidebarLinkActive" : ""}`}
         onClick={() => onToggle(label)}
+        aria-expanded={isOpen}
+        aria-controls={menuId}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
           background: "none",
           border: "none",
           cursor: "pointer",
           width: "100%",
-          padding: "10px 14px",
-          marginBottom: "4px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -73,47 +89,66 @@ function DropdownLink({
           <span>{label}</span>
         </div>
         {createElement(ChevronDown, {
+          className: "sidebarChevron",
           size: 14,
-          style: {
-            transition: "transform 0.2s",
-            transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-          },
+          style: { transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" },
         })}
       </button>
-      {isOpen && (
-        <div
-          style={{
-            paddingLeft: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-          }}
-        >
-          {items.map((item) => (
+      <div
+        id={menuId}
+        className={`sidebarSubmenu ${isOpen ? "sidebarSubmenuOpen" : ""}`}
+      >
+        {items.map((item) => {
+          const isActive = isSubItemActive(item.to);
+          const itemClasses = [
+            "sidebarSubLink",
+            item.kind === "action" ? "sidebarSubLinkAction" : "",
+            isActive ? "sidebarSubLinkActive" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
             <Link
               key={item.to}
               to={item.to}
-              className="sidebarLink"
-              style={{ fontSize: "13px", paddingLeft: "10px" }}
+              className={itemClasses}
               onClick={onNavigate}
+              aria-current={isActive ? "page" : undefined}
             >
+              {item.kind === "action" && <Plus size={14} aria-hidden="true" />}
               {item.label}
+              {item.kind === "action" && (
+                <span className="sidebarActionBadge" aria-hidden="true">
+                  Action
+                </span>
+              )}
             </Link>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 function DashboardLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const { user, logout, isAdmin } = useAuth();
+
+  useEffect(() => {
+    if (pathname.startsWith("/discussion")) {
+      setActiveDropdown("Discussion");
+      return;
+    }
+    if (pathname.startsWith("/progress")) {
+      setActiveDropdown("My Progress");
+    }
+  }, [pathname]);
 
   const initials = useMemo(() => {
     if (!user?.name) return "UC";
@@ -141,10 +176,10 @@ const navLinks = useMemo(() => {
   }, [isAdmin]);
 
   const discussionDropdownItems = [
-    { to: "/discussion?view=feed", label: "Community Feed" },
+    { to: "/discussion?view=feed", label: "Feed" },
     { to: "/discussion?view=thread", label: "Thread View" },
     { to: "/discussion?view=mine", label: "My Posts" },
-    { to: "/discussion?view=create", label: "Create Post" },
+    { to: "/discussion?view=create", label: "Create Post", kind: "action" },
   ];
 
   const progressDropdownItems = [
@@ -185,6 +220,7 @@ const navLinks = useMemo(() => {
               activeDropdown={activeDropdown}
               onToggle={setActiveDropdown}
               onNavigate={() => setSidebarOpen(false)}
+              isSubItemActive={isSubItemActive}
             />
           )}
 
@@ -222,6 +258,7 @@ const navLinks = useMemo(() => {
               activeDropdown={activeDropdown}
               onToggle={setActiveDropdown}
               onNavigate={() => setSidebarOpen(false)}
+              isSubItemActive={isSubItemActive}
             />
           )}
         </nav>
