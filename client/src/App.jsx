@@ -7,6 +7,11 @@ import StudentDiscussion from './pages/discussion/StudentDiscussion'
 import AdminDiscussion from './pages/discussion/AdminDiscussion'
 import ResourceSharing from './pages/resources/ResourceSharing'
 import HelpRequest from './pages/helprequest/HelpRequest'
+import PostHelpRequest from './pages/helprequest/PostHelpRequest'
+import EditHelpRequest from './pages/helprequest/EditHelpRequest'
+import AcceptedRequests from './pages/helprequest/AcceptedRequests'
+import ChatSession from './pages/helprequest/ChatSession'
+import HelpRequestDashboard from './pages/helprequest/HelpRequestDashboard'
 import ProgressTabs from './pages/progress/ProgressTabs'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -33,16 +38,21 @@ function App() {
           <BrowserRouter>
             <Routes>
               {/* Public routes */}
-              <Route path="/login"    element={<Login />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
 
               {/* Protected dashboard routes */}
               <Route element={<PrivateRoute />}>
-                <Route path="/"              element={<Navigate to="/discussion" replace />} />
-                <Route path="/discussion"    element={<StudentDiscussion />} />
-                <Route path="/resources"     element={<ResourceSharing />} />
-                <Route path="/help-request"  element={<HelpRequest />} />
-                <Route path="/progress"      element={<ProgressTabs />} />
+                <Route path="/" element={<Navigate to="/discussion" replace />} />
+                <Route path="/discussion" element={<StudentDiscussion />} />
+                <Route path="/resources" element={<ResourceSharing />} />
+                <Route path="/help-request" element={<HelpRequest />} />
+                <Route path="/help-request/new" element={<PostHelpRequest />} />
+                <Route path="/help-request/edit/:id" element={<EditHelpRequest />} />
+                <Route path="/help-request/accepted" element={<AcceptedRequests />} />
+                <Route path="/help-request/chat/:id" element={<ChatSession />} />
+                <Route path="/help-request/dashboard" element={<HelpRequestDashboard />} />
+                <Route path="/progress" element={<ProgressTabs />} />
 
                 {/* Admin-only route */}
                 <Route element={<AdminRoute />}>

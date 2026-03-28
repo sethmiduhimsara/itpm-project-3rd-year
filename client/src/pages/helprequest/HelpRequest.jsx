@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Pencil, MessageSquare, CheckCircle2 } from 'lucide-react'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useActivities } from '../../contexts/ActivityContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -18,9 +20,6 @@ function HelpRequest() {
 
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ subject: 'Mathematics', topic: '' })
-  const [errors, setErrors] = useState({})
-  const [showForm, setShowForm] = useState(false)
   const [successMsg, setSuccessMsg] = useState('')
   const [responseInputs, setResponseInputs] = useState({})
   const [responseErrors, setResponseErrors] = useState({})
@@ -34,30 +33,7 @@ function HelpRequest() {
       .catch(() => setLoading(false))
   }, [])
 
-  const validate = () => {
-    const newErrors = {}
-    if (!form.topic.trim()) newErrors.topic = 'Topic/question is required.'
-    else if (form.topic.trim().length < 10) newErrors.topic = 'Please describe your question in at least 10 characters.'
-    else if (form.topic.trim().length > 200) newErrors.topic = 'Question must be under 200 characters.'
-    return newErrors
-  }
-
-  const handleSubmit = async () => {
-    const foundErrors = validate()
-    if (Object.keys(foundErrors).length > 0) { setErrors(foundErrors); return }
-    try {
-      const res = await api.post('/help-requests', { ...form, requester: user.name })
-      setRequests([res.data, ...requests])
-      setForm({ subject: 'Mathematics', topic: '' })
-      setErrors({})
-      setShowForm(false)
-      setSuccessMsg('Help request posted!')
-      addActivity({ type: 'Help Received', description: `Posted help request: ${form.subject} — ${form.topic}`, date: new Date().toISOString() })
-      setTimeout(() => setSuccessMsg(''), 3000)
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to post help request')
-    }
-  }
+  const navigate = useNavigate()
 
   const handleAccept = async (id) => {
     const helper = helperNames[id] || ''
@@ -92,7 +68,7 @@ function HelpRequest() {
     if (Object.keys(newErrors).length > 0) { setResponseErrors({ ...responseErrors, [id]: newErrors }); return }
 
     try {
-      const res = await api.post(`/help-requests/${id}/responses`, { text, helper })
+      const res = await api.post(`/help-requests/${id}/messages`, { text })
       setRequests(requests.map(r => r._id === id ? res.data : r))
       setResponseInputs({ ...responseInputs, [id]: '' })
       setResponseErrors({ ...responseErrors, [id]: {} })
@@ -159,26 +135,9 @@ function HelpRequest() {
           ))}
         </div>
 
-        <button style={styles.newBtn} onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : 'Post Help Request'}
+        <button style={styles.newBtn} onClick={() => navigate('/help-request/new')}>
+          + Create New Request
         </button>
-
-        {/* Form */}
-        {showForm && (
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Post a Help Request</h3>
-            <label style={styles.label}>Subject *</label>
-            <select style={styles.input} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}>
-              {SUBJECTS.map(s => <option key={s}>{s}</option>)}
-            </select>
-            <label style={styles.label}>Your Question / Topic *</label>
-            <textarea style={{ ...styles.textarea, ...(errors.topic ? styles.inputError : {}) }}
-              placeholder="Describe what you need help with (min 10 characters)"
-              value={form.topic} rows={4} onChange={e => setForm({ ...form, topic: e.target.value })} />
-            {errors.topic && <span style={styles.error}>{errors.topic}</span>}
-            <button style={styles.submitBtn} onClick={handleSubmit}>Post Request</button>
-          </div>
-        )}
 
         {/* Request Cards */}
         {loading ? (
@@ -194,8 +153,26 @@ function HelpRequest() {
                   {req.status}
                 </span>
               </div>
-              <h3 style={styles.reqTopic}>{req.topic}</h3>
-              <p style={styles.reqMeta}>Posted by {req.requester} • {new Date(req.createdAt).toLocaleDateString()}</p>
+              <h3 style={styles.reqTitle}>{req.title}</h3>
+              <p style={styles.reqDesc}>{req.description}</p>
+
+              <div style={styles.reqMetaRow}>
+                <span style={styles.reqMeta}>Posted by {req.requester} • {new Date(req.createdAt).toLocaleDateString()}</span>
+                <div style={styles.badgeGroup}>
+                  <span style={{ ...styles.urgencyBadge, ...styles[`urgency${req.urgency}`] }}>{req.urgency} Urgency</span>
+                  {req.visibility === 'Private' && (
+                    <span style={styles.privateBadge}>Private (Shared with {req.targetStudent})</span>
+                  )}
+                </div>
+              </div>
+
+              {req.fileUrl && (
+                <div style={styles.attachmentBox}>
+                  <a href={`http://localhost:5000${req.fileUrl}`} target="_blank" rel="noreferrer" style={styles.fileLink}>
+                    View Attachment
+                  </a>
+                </div>
+              )}
 
               {/* Responses */}
               {req.responses.length > 0 && (
@@ -240,10 +217,33 @@ function HelpRequest() {
               )}
 
               <div style={styles.actionRow}>
-                {req.status === 'In Progress' && (
-                  <button style={styles.closeBtn} onClick={() => handleClose(req._id)}>Mark Closed</button>
+                {(user?.name === req.requester || user?.name === req.acceptedBy || user?.role === 'admin') && req.status === 'In Progress' && (
+                  <button 
+                    style={styles.closeBtn} 
+                    onClick={() => handleClose(req._id)}
+                  >
+                    <CheckCircle2 size={14} style={{ marginRight: '4px' }} /> Closed
+                  </button>
                 )}
-                <button style={styles.deleteBtn} onClick={() => handleDelete(req._id)}>Delete</button>
+                {(user?.name === req.requester || user?.name === req.acceptedBy || user?.role === 'admin') && req.status !== 'Open' && (
+                  <button
+                    style={styles.chatNowBtn}
+                    onClick={() => navigate(`/help-request/chat/${req._id}`)}
+                  >
+                    <MessageSquare size={14} style={{ marginRight: '4px' }} /> Chat Now
+                  </button>
+                )}
+                {(user?.name === req.requester || user?.role === 'admin') && (
+                  <button
+                    style={styles.editBtn}
+                    onClick={() => navigate(`/help-request/edit/${req._id}`)}
+                  >
+                    <Pencil size={14} style={{ marginRight: '4px' }} /> Edit
+                  </button>
+                )}
+                {(user?.name === req.requester || user?.role === 'admin') && (
+                  <button style={styles.deleteBtn} onClick={() => handleDelete(req._id)}>Delete</button>
+                )}
               </div>
             </div>
           ))
@@ -277,8 +277,18 @@ const styles = {
   reqHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '8px' },
   subjectBadge: { backgroundColor: 'rgba(var(--accent-rgb), 0.16)', color: 'var(--text)', padding: '3px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: '800', border: '1px solid rgba(var(--accent2-rgb), 0.40)' },
   statusBadge: { color: 'var(--text)', padding: '3px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: '800', border: '1px solid rgba(255, 255, 255, 0.12)' },
-  reqTopic: { fontSize: '16px', color: 'var(--text)', marginBottom: '4px' },
-  reqMeta: { color: 'var(--muted2)', fontSize: '12px', marginBottom: '12px' },
+  reqTitle: { fontSize: '20px', color: 'var(--text)', marginBottom: '8px', fontWeight: '700' },
+  reqDesc: { fontSize: '14px', color: 'var(--muted)', marginBottom: '16px', lineHeight: '1.6' },
+  reqMetaRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' },
+  reqMeta: { color: 'var(--muted2)', fontSize: '12px' },
+  badgeGroup: { display: 'flex', gap: '8px' },
+  urgencyBadge: { padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase' },
+  urgencyLow: { backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)' },
+  urgencyMedium: { backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)' },
+  urgencyHigh: { backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' },
+  privateBadge: { backgroundColor: 'rgba(255, 255, 255, 0.08)', color: 'var(--muted)', padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '800', border: '1px solid rgba(255, 255, 255, 0.1)' },
+  attachmentBox: { marginBottom: '16px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '10px', border: '1px solid var(--panel-border)' },
+  fileLink: { color: 'var(--accent)', fontSize: '13px', fontWeight: '700', textDecoration: 'none' },
   responsesSection: { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: '12px', padding: '12px', marginBottom: '12px', border: '1px solid rgba(255, 255, 255, 0.10)' },
   responseItem: { marginTop: '8px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.10)', borderLeft: '3px solid rgba(var(--accent2-rgb), 0.55)' },
   responseText: { fontSize: '14px', color: 'var(--text)' },
@@ -288,7 +298,9 @@ const styles = {
   acceptBtn: { backgroundColor: 'rgba(var(--accent2-rgb), 0.22)', color: 'var(--text)', border: '1px solid rgba(var(--accent2-rgb), 0.35)', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', marginTop: '4px', fontWeight: '900' },
   respondBtn: { backgroundColor: 'rgba(var(--accent2-rgb), 0.30)', color: 'var(--bg)', border: 'none', padding: '8px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', marginTop: '4px', fontWeight: '900' },
   actionRow: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' },
-  closeBtn: { backgroundColor: 'rgba(var(--accent-rgb), 0.16)', color: 'var(--text)', border: '1px solid rgba(var(--accent2-rgb), 0.35)', padding: '6px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' },
+  closeBtn: { backgroundColor: 'rgba(52, 211, 153, 0.16)', color: '#10b981', border: '1px solid rgba(52, 211, 153, 0.35)', padding: '6px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' },
+  chatNowBtn: { backgroundColor: 'rgba(var(--accent-rgb), 0.16)', color: 'var(--accent)', border: '1px solid rgba(var(--accent2-rgb), 0.35)', padding: '6px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center' },
+  editBtn: { backgroundColor: 'rgba(var(--accent2-rgb), 0.12)', color: 'var(--accent2)', border: '1px solid rgba(var(--accent2-rgb), 0.35)', padding: '6px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center' },
   deleteBtn: { backgroundColor: 'rgba(251, 113, 133, 0.12)', color: 'var(--danger)', border: '1px solid rgba(251, 113, 133, 0.35)', padding: '6px 14px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' },
   emptyState: { textAlign: 'center', color: 'var(--muted2)', padding: '40px', backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: '14px', border: '1px dashed rgba(var(--accent2-rgb), 0.35)' },
 }

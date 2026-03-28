@@ -8,11 +8,13 @@ import { useNotifications } from './contexts/NotificationContext'
 import { useAuth } from './contexts/AuthContext'
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith('/admin'))      return 'Admin Dashboard'
+  if (pathname.startsWith('/admin')) return 'Admin Dashboard'
   if (pathname.startsWith('/discussion')) return 'Student Discussion'
-  if (pathname.startsWith('/resources'))  return 'Resource Sharing'
+  if (pathname.startsWith('/resources')) return 'Resource Sharing'
+  if (pathname.startsWith('/help-request/dashboard')) return 'Help Dashboard'
+  if (pathname.startsWith('/help-request/new')) return 'Post Help Request'
   if (pathname.startsWith('/help-request')) return 'Help Requests'
-  if (pathname.startsWith('/progress'))   return 'My Progress'
+  if (pathname.startsWith('/progress')) return 'My Progress'
   return 'Dashboard'
 }
 
@@ -101,9 +103,8 @@ function DashboardLayout() {
     }
     // Students see regular navigation
     return [
-      { to: '/discussion',    label: 'Discussion',   icon: MessagesSquare },
-      { to: '/resources',     label: 'Resources',    icon: BookOpen },
-      { to: '/help-request',  label: 'Help Requests',icon: HelpCircle },
+      { to: '/discussion', label: 'Discussion', icon: MessagesSquare },
+      { to: '/resources', label: 'Resources', icon: BookOpen },
     ]
   }, [isAdmin])
 
@@ -112,6 +113,13 @@ function DashboardLayout() {
     { to: '/progress?tab=history', label: 'Activity History' },
     { to: '/progress?tab=badges', label: 'Badges' },
     { to: '/progress?tab=progress', label: 'Progress' },
+  ]
+
+  const helpRequestDropdownItems = [
+    { to: '/help-request', label: 'Browse Requests' },
+    { to: '/help-request/dashboard', label: 'My Help Dashboard' },
+    { to: '/help-request/accepted', label: 'My Accepted Tasks' },
+    { to: '/help-request/new', label: 'Post New Request' },
   ]
 
   return (
@@ -136,6 +144,19 @@ function DashboardLayout() {
               onNavigate={() => setSidebarOpen(false)}
             />
           ))}
+
+          {/* Help Requests dropdown - only for students */}
+          {!isAdmin && (
+            <DropdownLink
+              label="Help Requests"
+              icon={HelpCircle}
+              active={pathname.startsWith('/help-request')}
+              items={helpRequestDropdownItems}
+              activeDropdown={activeDropdown}
+              onToggle={setActiveDropdown}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          )}
 
           {/* My Progress dropdown - only for students */}
           {!isAdmin && (
