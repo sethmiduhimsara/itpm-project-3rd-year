@@ -130,13 +130,13 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
-const navLinks = useMemo(() => {
+  const navLinks = useMemo(() => {
     if (isAdmin) {
       return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
     }
     return [
       { to: "/resources", label: "Resources", icon: BookOpen },
-      { to: "/help-request", label: "Help Requests", icon: HelpCircle },
+      //{ to: "/help-request", label: "Help Requests", icon: HelpCircle },
     ];
   }, [isAdmin]);
 
@@ -155,8 +155,8 @@ const navLinks = useMemo(() => {
   ];
 
   const helpRequestDropdownItems = [
-    { to: '/help-request', label: 'Browse Requests' },
     { to: '/help-request/dashboard', label: 'My Help Dashboard' },
+    { to: '/help-request', label: 'Browse Requests' },
     { to: '/help-request/accepted', label: 'My Accepted Tasks' },
     { to: '/help-request/new', label: 'Post New Request' },
   ]

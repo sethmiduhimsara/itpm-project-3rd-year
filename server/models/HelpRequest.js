@@ -8,8 +8,7 @@ const responseSchema = new mongoose.Schema({
 })
 
 const helpRequestSchema = new mongoose.Schema({
-  subject:     { type: String, required: true,
-                 enum: ['Mathematics','Software Engineering','Database','Networks','ITPM','Other'] },
+  subject:     { type: String, required: true },
   title:       { type: String, required: true, minlength: 5, maxlength: 100 },
   description: { type: String, required: true, minlength: 10 },
   requester:   { type: String, required: true },
