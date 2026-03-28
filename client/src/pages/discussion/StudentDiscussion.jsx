@@ -14,6 +14,15 @@ const CATEGORIES = [
 ];
 
 const DISCUSSION_STATUSES = ["Open", "Resolved"];
+const SEARCH_MAX_LENGTH = 80;
+const POST_BODY_MAX = 2000;
+const REPLY_MAX = 500;
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 function StudentDiscussion() {
   const { addActivity } = useActivities();
@@ -57,15 +66,25 @@ function StudentDiscussion() {
 
   const validate = () => {
     const newErrors = {};
-    if (!form.title.trim()) newErrors.title = "Title is required.";
-    else if (form.title.trim().length < 5)
+    const normalizedTitle = normalizeText(form.title);
+    const normalizedBody = normalizeText(form.body);
+
+    if (!normalizedTitle) newErrors.title = "Title is required.";
+    else if (normalizedTitle.length < 5)
       newErrors.title = "Title must be at least 5 characters.";
-    else if (form.title.trim().length > 100)
+    else if (normalizedTitle.length > 100)
       newErrors.title = "Title must be under 100 characters.";
-    if (!form.body.trim()) newErrors.body = "Description is required.";
-    else if (form.body.trim().length < 10)
+    if (!normalizedBody) newErrors.body = "Description is required.";
+    else if (normalizedBody.length < 10)
       newErrors.body = "Description must be at least 10 characters.";
-    if (!form.category) newErrors.category = "Please select a category.";
+    else if (normalizedBody.length > POST_BODY_MAX)
+      newErrors.body = `Description must be under ${POST_BODY_MAX} characters.`;
+    if (
+      !form.category ||
+      !CATEGORIES.includes(form.category) ||
+      form.category === "All"
+    )
+      newErrors.category = "Please select a valid category.";
     return newErrors;
   };
 
@@ -76,7 +95,12 @@ function StudentDiscussion() {
       return;
     }
     try {
-      const res = await api.post("/posts", { ...form });
+      const payload = {
+        title: normalizeText(form.title),
+        body: normalizeText(form.body),
+        category: form.category,
+      };
+      const res = await api.post("/posts", payload);
       setPosts((prev) => [res.data, ...prev]);
       setForm({ title: "", body: "", category: "Exams" });
       setErrors({});
@@ -94,19 +118,36 @@ function StudentDiscussion() {
   };
 
   const handleReplySubmit = async (postId) => {
-    const reply = replyInputs[postId] || "";
-    if (!reply.trim()) {
+    const reply = normalizeText(replyInputs[postId] || "");
+    const post = posts.find((p) => p._id === postId);
+
+    if (!reply) {
       setReplyErrors({ ...replyErrors, [postId]: "Reply cannot be empty." });
       return;
     }
-    if (reply.trim().length < 3) {
+    if (reply.length < 3) {
       setReplyErrors({
         ...replyErrors,
         [postId]: "Reply must be at least 3 characters.",
       });
       return;
     }
-    const target = posts.find((p) => p._id === postId);
+    if (reply.length > REPLY_MAX) {
+      setReplyErrors({
+        ...replyErrors,
+        [postId]: `Reply must be under ${REPLY_MAX} characters.`,
+      });
+      return;
+    }
+    if (post?.discussionStatus === "Resolved") {
+      setReplyErrors({
+        ...replyErrors,
+        [postId]: "This discussion is resolved. Reopen it to add replies.",
+      });
+      return;
+    }
+
+    const target = post;
     try {
       const res = await api.post(`/posts/${postId}/replies`, { text: reply });
       setPosts((prev) => prev.map((p) => (p._id === postId ? res.data : p)));
@@ -165,7 +206,9 @@ function StudentDiscussion() {
       : posts.filter((p) => p.category === activeCategory);
 
   const searchedPosts = filteredByCategory.filter((p) => {
-    const q = searchText.trim().toLowerCase();
+    const q = normalizeText(searchText)
+      .slice(0, SEARCH_MAX_LENGTH)
+      .toLowerCase();
     if (!q) return true;
     return (
       p.title.toLowerCase().includes(q) ||
@@ -231,7 +274,9 @@ function StudentDiscussion() {
               style={styles.search}
               placeholder="Search discussions by title, content, or author..."
               value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
+              onChange={(e) =>
+                setSearchText(e.target.value.slice(0, SEARCH_MAX_LENGTH))
+              }
             />
           </div>
 
