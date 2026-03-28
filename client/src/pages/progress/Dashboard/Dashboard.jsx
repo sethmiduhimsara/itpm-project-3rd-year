@@ -158,7 +158,7 @@ const Dashboard = () => {
               </button>
             ))}
           </div>
-          <div className="notif-dot">3</div>
+          {/* <div className="notif-dot">3</div> */}
         </div>
       </div>
 
