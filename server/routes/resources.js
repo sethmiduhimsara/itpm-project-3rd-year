@@ -6,9 +6,13 @@ const {
 } = require('../controllers/resourceController')
 
 // Multer — save PDFs to /uploads with a unique timestamped filename
+const fs = require('fs');
+if (!fs.existsSync('uploads/')) {
+  fs.mkdirSync('uploads/');
+}
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
-  filename:    (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
+  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
 })
 const upload = multer({
   storage,
@@ -18,9 +22,9 @@ const upload = multer({
   }
 })
 
-router.get('/',              getResources)
-router.post('/',             upload.single('file'), createResource)  // 'file' matches formData.append('file', ...)
-router.patch('/:id/report',  reportResource)
-router.delete('/:id',        deleteResource)
+router.get('/', getResources)
+router.post('/', upload.single('file'), createResource)  // 'file' matches formData.append('file', ...)
+router.patch('/:id/report', reportResource)
+router.delete('/:id', deleteResource)
 
 module.exports = router
