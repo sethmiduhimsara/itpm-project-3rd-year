@@ -376,7 +376,7 @@ const Progress = ({ activities = [] }) => {
       {/* ── Subject Engagement + Heatmap ── */}
       <div className="prog-grid-2">
 
-        {/* Horizontal bars */}
+        {/* Horizontal bars
         <div className="prog-card">
           <div className="prog-card-title">
             Subject Engagement
@@ -391,10 +391,10 @@ const Progress = ({ activities = [] }) => {
               <div className="hbar-val" style={{ color: s.color }}>{s.val}</div>
             </div>
           ))}
-        </div>
+        </div> */}
 
         {/* Weekly heatmap */}
-        <div className="prog-card">
+        {/* <div className="prog-card">
           <div className="prog-card-title">
             Weekly Pattern
             <span>Activity by day</span>
@@ -421,13 +421,13 @@ const Progress = ({ activities = [] }) => {
             ))}
             <span>More</span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* ── Monthly Goals ── */}
       <div className="prog-card">
         <div className="prog-card-title">
-          Monthly Goals
+          Monthly Progress
           <span>Resets in 9 days</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>

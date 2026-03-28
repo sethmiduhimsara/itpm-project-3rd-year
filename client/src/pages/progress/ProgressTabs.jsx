@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useActivities } from '../../contexts/ActivityContext'
 import Dashboard from './Dashboard/Dashboard'
 import History from './Activity_history/History'
-import Badges from './Badges/Badges'
+// import Badges from './Badges/Badges'
 import Progress from './Progress/Progress'
 
 const ProgressTabs = () => {
@@ -12,7 +12,7 @@ const ProgressTabs = () => {
   const [activeTab, setActiveTab] = useState('Dashboard')
   const { activities, refetchActivities } = useActivities()
 
-  const tabs = ['Dashboard', 'Activity History', 'Badges', 'Progress']
+  const tabs = ['Dashboard', 'Activity History', 'Progress']
 
   // Refetch activities when component mounts
   useEffect(() => {
@@ -50,7 +50,7 @@ const ProgressTabs = () => {
       <div style={styles.content}>
         {activeTab === 'Dashboard' && <Dashboard />}
         {activeTab === 'Activity History' && <History activities={activities} />}
-        {activeTab === 'Badges' && <Badges activities={activities} />}
+        {/* {activeTab === 'Badges' && <Badges activities={activities} />} */}
         {activeTab === 'Progress' && <Progress activities={activities} />}
       </div>
     </div>
