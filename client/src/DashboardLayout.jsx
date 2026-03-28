@@ -19,12 +19,14 @@ import { useNotifications } from "./contexts/NotificationContext";
 import { useAuth } from "./contexts/AuthContext";
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith("/admin")) return "Admin Dashboard";
-  if (pathname.startsWith("/discussion")) return "Student Discussion";
-  if (pathname.startsWith("/resources")) return "Resource Sharing";
-  if (pathname.startsWith("/help-request")) return "Help Requests";
-  if (pathname.startsWith("/progress")) return "My Progress";
-  return "Dashboard";
+  if (pathname.startsWith('/admin')) return 'Admin Dashboard'
+  if (pathname.startsWith('/discussion')) return 'Student Discussion'
+  if (pathname.startsWith('/resources')) return 'Resource Sharing'
+  if (pathname.startsWith('/help-request/dashboard')) return 'Help Dashboard'
+  if (pathname.startsWith('/help-request/new')) return 'Post Help Request'
+  if (pathname.startsWith('/help-request')) return 'Help Requests'
+  if (pathname.startsWith('/progress')) return 'My Progress'
+  return 'Dashboard'
 }
 
 function SidebarLink({ to, label, icon: Icon, active, onNavigate }) {
@@ -163,12 +165,10 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
-  const navLinks = useMemo(() => {
-    // Admin sees only Admin Panel
+const navLinks = useMemo(() => {
     if (isAdmin) {
       return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
     }
-    // Students see regular navigation
     return [
       { to: "/resources", label: "Resources", icon: BookOpen },
       { to: "/help-request", label: "Help Requests", icon: HelpCircle },
@@ -185,11 +185,16 @@ function DashboardLayout() {
   const progressDropdownItems = [
     { to: "/progress", label: "Dashboard" },
     { to: "/progress?tab=history", label: "Activity History" },
-    { to: "/progress?tab=badges", label: "Badges" },
+    // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
 
-  const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
+  const helpRequestDropdownItems = [
+    { to: '/help-request', label: 'Browse Requests' },
+    { to: '/help-request/dashboard', label: 'My Help Dashboard' },
+    { to: '/help-request/accepted', label: 'My Accepted Tasks' },
+    { to: '/help-request/new', label: 'Post New Request' },
+  ]
 
   return (
     <div className={`dashboardShell ${sidebarOpen ? "sidebarOpen" : ""}`}>
@@ -229,6 +234,19 @@ function DashboardLayout() {
               onNavigate={() => setSidebarOpen(false)}
             />
           ))}
+
+          {/* Help Requests dropdown - only for students */}
+          {!isAdmin && (
+            <DropdownLink
+              label="Help Requests"
+              icon={HelpCircle}
+              active={pathname.startsWith('/help-request')}
+              items={helpRequestDropdownItems}
+              activeDropdown={activeDropdown}
+              onToggle={setActiveDropdown}
+              onNavigate={() => setSidebarOpen(false)}
+            />
+          )}
 
           {/* My Progress dropdown - only for students */}
           {!isAdmin && (

@@ -4,6 +4,14 @@ require('dotenv').config()
 const connectDB = require('./config/db')
 const { seedAdmin } = require('./controllers/authController')
 const { protect } = require('./middleware/authMiddleware')
+const fs = require('fs')
+const path = require('path')
+
+// Ensure uploads directory exists
+const uploadDir = path.join(__dirname, 'uploads')
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true })
+}
 
 const dns = require('node:dns')
 dns.setServers(['1.1.1.1', '8.8.8.8'])
@@ -35,3 +43,11 @@ app.use('/api/activities',    protect, require('./routes/activities'))
 
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`))
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('SERVER_ERROR:', err.message)
+  res.status(err.status || 500).json({ 
+    message: err.message || 'An unexpected server error occurred' 
+  })
+})
