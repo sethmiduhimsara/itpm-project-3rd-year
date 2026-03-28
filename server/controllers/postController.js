@@ -1,7 +1,25 @@
 const Post = require("../models/Post");
+const mongoose = require("mongoose");
 
 const DISCUSSION_STATUSES = new Set(["Open", "Resolved"]);
 const MODERATION_STATUSES = new Set(["Visible", "Hidden"]);
+const ALLOWED_CATEGORIES = new Set([
+  "Exams",
+  "Group Issues",
+  "Lectures",
+  "Campus Life",
+  "General",
+]);
+
+function normalizeText(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isValidObjectId(value) {
+  return mongoose.Types.ObjectId.isValid(String(value || ""));
+}
 
 function isOwnerOrAdmin(post, user) {
   if (!post || !user) return false;
@@ -14,9 +32,15 @@ function isOwnerOrAdmin(post, user) {
 exports.getPosts = async (req, res) => {
   try {
     const filter = {};
+
     if (req.query.category && req.query.category !== "All") {
-      filter.category = req.query.category;
+      const category = normalizeText(req.query.category);
+      if (!ALLOWED_CATEGORIES.has(category)) {
+        return res.status(400).json({ message: "Invalid category filter" });
+      }
+      filter.category = category;
     }
+
     // Students should never see hidden posts.
     if (req.user?.role !== "admin") {
       filter.status = "Visible";
@@ -31,10 +55,30 @@ exports.getPosts = async (req, res) => {
 // POST /api/posts  — create a new post
 exports.createPost = async (req, res) => {
   try {
+    const title = normalizeText(req.body.title);
+    const body = normalizeText(req.body.body);
+    const category = normalizeText(req.body.category);
+
+    if (title.length < 5 || title.length > 100) {
+      return res
+        .status(400)
+        .json({ message: "Title must be between 5 and 100 characters" });
+    }
+    if (body.length < 10 || body.length > 2000) {
+      return res
+        .status(400)
+        .json({
+          message: "Description must be between 10 and 2000 characters",
+        });
+    }
+    if (!ALLOWED_CATEGORIES.has(category)) {
+      return res.status(400).json({ message: "Invalid category" });
+    }
+
     const post = new Post({
-      title: req.body.title,
-      body: req.body.body,
-      category: req.body.category,
+      title,
+      body,
+      category,
       author: req.user.name,
       ownerId: String(req.user._id),
       discussionStatus: "Open",
@@ -49,15 +93,24 @@ exports.createPost = async (req, res) => {
 // POST /api/posts/:id/replies  — add a reply
 exports.addReply = async (req, res) => {
   try {
-    const text = String(req.body.text || "").trim();
-    if (text.length < 3) {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
+    const text = normalizeText(req.body.text);
+    if (text.length < 3 || text.length > 500) {
       return res
         .status(400)
-        .json({ message: "Reply must be at least 3 characters" });
+        .json({ message: "Reply must be between 3 and 500 characters" });
     }
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
+    if (post.discussionStatus === "Resolved") {
+      return res
+        .status(400)
+        .json({ message: "Cannot reply to a resolved discussion" });
+    }
 
     post.replies.push({
       text,
@@ -74,6 +127,10 @@ exports.addReply = async (req, res) => {
 // PATCH /api/posts/:id/discussion-status  — owner/admin open/resolved
 exports.updateDiscussionStatus = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
     const nextStatus = String(req.body.discussionStatus || "");
     if (!DISCUSSION_STATUSES.has(nextStatus)) {
       return res.status(400).json({ message: "Invalid discussion status" });
@@ -98,6 +155,13 @@ exports.updateDiscussionStatus = async (req, res) => {
 // PATCH /api/posts/:postId/replies/:replyId/helpful  — toggle helpful reaction
 exports.toggleReplyHelpful = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.postId)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+    if (!isValidObjectId(req.params.replyId)) {
+      return res.status(400).json({ message: "Invalid reply id" });
+    }
+
     const post = await Post.findById(req.params.postId);
     if (!post) return res.status(404).json({ message: "Post not found" });
 
@@ -124,6 +188,10 @@ exports.toggleReplyHelpful = async (req, res) => {
 // PATCH /api/posts/:id/status  — admin hide/show
 exports.updateStatus = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
     const nextStatus = String(req.body.status || "");
     if (!MODERATION_STATUSES.has(nextStatus)) {
       return res.status(400).json({ message: "Invalid moderation status" });
@@ -144,6 +212,10 @@ exports.updateStatus = async (req, res) => {
 // DELETE /api/posts/:id  — delete a post
 exports.deletePost = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: "Post not found" });
     if (!isOwnerOrAdmin(post, req.user)) {

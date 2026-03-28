@@ -149,7 +149,31 @@ async function run() {
     "discussionStatus did not update to Resolved",
   );
 
-  console.log("Step 5/10: Student B replies to post...");
+  console.log("Step 5/10: Student B cannot reply to resolved post...");
+  const replyBlocked = await request("POST", `/api/posts/${postId}/replies`, {
+    token: tokenB,
+    body: { text: "This is a helpful verification reply." },
+  });
+  assert(
+    replyBlocked.status === 400,
+    `Expected 400 when replying to resolved thread, got ${replyBlocked.status}`,
+  );
+
+  console.log("Step 6/10: Student A reopens own post...");
+  const ownerReopen = await request(
+    "PATCH",
+    `/api/posts/${postId}/discussion-status`,
+    {
+      token: tokenA,
+      body: { discussionStatus: "Open" },
+    },
+  );
+  assert(
+    ownerReopen.ok,
+    `Owner reopen failed: ${ownerReopen.data?.message || ownerReopen.status}`,
+  );
+
+  console.log("Step 7/10: Student B replies to reopened post...");
   const replyRes = await request("POST", `/api/posts/${postId}/replies`, {
     token: tokenB,
     body: { text: "This is a helpful verification reply." },
@@ -162,7 +186,7 @@ async function run() {
   assert(createdReply?._id, "Reply id missing after creation");
   const replyId = createdReply._id;
 
-  console.log("Step 6/10: Student A toggles helpful on reply...");
+  console.log("Step 8/10: Student A toggles helpful on reply...");
   const helpfulOn = await request(
     "PATCH",
     `/api/posts/${postId}/replies/${replyId}/helpful`,
@@ -180,7 +204,7 @@ async function run() {
     `Expected helpfulCount 1, got ${replyAfterOn?.helpfulCount || 0}`,
   );
 
-  console.log("Step 7/10: Student A toggles helpful off reply...");
+  console.log("Step 9/10: Student A toggles helpful off reply...");
   const helpfulOff = await request(
     "PATCH",
     `/api/posts/${postId}/replies/${replyId}/helpful`,
@@ -198,7 +222,7 @@ async function run() {
     `Expected helpfulCount 0, got ${replyAfterOff?.helpfulCount || 0}`,
   );
 
-  console.log("Step 8/10: Student B cannot delete Student A post...");
+  console.log("Step 10/10: Student B cannot delete Student A post...");
   const unauthorizedDelete = await request("DELETE", `/api/posts/${postId}`, {
     token: tokenB,
   });
@@ -207,7 +231,7 @@ async function run() {
     `Expected 403, got ${unauthorizedDelete.status}`,
   );
 
-  console.log("Step 9/10: Admin hides post and student feed excludes it...");
+  console.log("Step 11/10: Admin hides post and student feed excludes it...");
   const hideRes = await request("PATCH", `/api/posts/${postId}/status`, {
     token: tokenAdmin,
     body: { status: "Hidden" },
@@ -240,7 +264,7 @@ async function run() {
     "Admin cannot see hidden post state",
   );
 
-  console.log("Step 10/10: Cleanup by admin delete...");
+  console.log("Step 12/10: Cleanup by admin delete...");
   const adminDelete = await request("DELETE", `/api/posts/${postId}`, {
     token: tokenAdmin,
   });
