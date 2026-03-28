@@ -150,7 +150,7 @@ function DashboardLayout() {
   const progressDropdownItems = [
     { to: "/progress", label: "Dashboard" },
     { to: "/progress?tab=history", label: "Activity History" },
-    { to: "/progress?tab=badges", label: "Badges" },
+    // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
 
