@@ -176,7 +176,6 @@ function DashboardLayout() {
     }
     return [
       { to: "/resources", label: "Resources", icon: BookOpen },
-      //{ to: "/help-request", label: "Help Requests", icon: HelpCircle },
     ];
   }, [isAdmin]);
 
@@ -193,7 +192,7 @@ function DashboardLayout() {
     // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
-
+  
   const helpRequestDropdownItems = [
     { to: '/help-request/dashboard', label: 'My Help Dashboard' },
     { to: '/help-request', label: 'Browse Requests' },
