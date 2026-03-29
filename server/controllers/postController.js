@@ -1,5 +1,6 @@
 const Post = require("../models/Post");
 const mongoose = require("mongoose");
+const fs = require("fs");
 
 const DISCUSSION_STATUSES = new Set(["Open", "Resolved"]);
 const MODERATION_STATUSES = new Set(["Visible", "Hidden"]);
@@ -18,6 +19,11 @@ function normalizeText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function removeUploadedFile(file) {
+  if (!file?.path) return;
+  fs.unlink(file.path, () => {});
 }
 
 function isValidObjectId(value) {
@@ -57,28 +63,34 @@ exports.getPosts = async (req, res) => {
 
 // POST /api/posts  — create a new post
 exports.createPost = async (req, res) => {
+  const uploadedImage = req.file;
+
   try {
     const title = normalizeText(req.body.title);
     const body = normalizeText(req.body.body);
     const category = normalizeText(req.body.category);
 
     if (title.length < 5 || title.length > 100) {
+      removeUploadedFile(uploadedImage);
       return res
         .status(400)
         .json({ message: "Title must be between 5 and 100 characters" });
     }
     if (body.length < 10 || body.length > 2000) {
+      removeUploadedFile(uploadedImage);
       return res.status(400).json({
         message: "Description must be between 10 and 2000 characters",
       });
     }
     if (!ALLOWED_CATEGORIES.has(category)) {
+      removeUploadedFile(uploadedImage);
       return res.status(400).json({ message: "Invalid category" });
     }
 
     const post = new Post({
       title,
       body,
+      imagePath: uploadedImage ? `/uploads/${uploadedImage.filename}` : "",
       category,
       author: req.user.name,
       ownerId: String(req.user._id),
@@ -87,27 +99,36 @@ exports.createPost = async (req, res) => {
     await post.save();
     res.status(201).json(post);
   } catch (err) {
+    removeUploadedFile(uploadedImage);
     res.status(400).json({ message: err.message });
   }
 };
 
 // POST /api/posts/:id/replies  — add a reply
 exports.addReply = async (req, res) => {
+  const uploadedImage = req.file;
+
   try {
     if (!isValidObjectId(req.params.id)) {
+      removeUploadedFile(uploadedImage);
       return res.status(400).json({ message: "Invalid post id" });
     }
 
     const text = normalizeText(req.body.text);
     if (text.length < 3 || text.length > 500) {
+      removeUploadedFile(uploadedImage);
       return res
         .status(400)
         .json({ message: "Reply must be between 3 and 500 characters" });
     }
 
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: "Post not found" });
+    if (!post) {
+      removeUploadedFile(uploadedImage);
+      return res.status(404).json({ message: "Post not found" });
+    }
     if (post.discussionStatus === "Resolved") {
+      removeUploadedFile(uploadedImage);
       return res
         .status(400)
         .json({ message: "Cannot reply to a resolved discussion" });
@@ -115,12 +136,14 @@ exports.addReply = async (req, res) => {
 
     post.replies.push({
       text,
+      imagePath: uploadedImage ? `/uploads/${uploadedImage.filename}` : "",
       author: req.user.name,
       authorId: String(req.user._id),
     });
     await post.save();
     res.json(post);
   } catch (err) {
+    removeUploadedFile(uploadedImage);
     res.status(400).json({ message: err.message });
   }
 };

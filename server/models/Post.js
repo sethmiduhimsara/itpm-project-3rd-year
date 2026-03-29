@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const replySchema = new mongoose.Schema({
   text: { type: String, required: true, minlength: 3, maxlength: 500 },
+  imagePath: { type: String, default: "", maxlength: 300 },
   author: { type: String, minlength: 2, default: "Student" },
   authorId: { type: String, default: "" },
   date: { type: String, default: () => new Date().toISOString().split("T")[0] },
@@ -23,6 +24,11 @@ const postSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, minlength: 5, maxlength: 100 },
     body: { type: String, required: true, minlength: 10 },
+    imagePath: {
+      type: String,
+      default: "",
+      maxlength: 300,
+    },
     category: {
       type: String,
       required: true,
