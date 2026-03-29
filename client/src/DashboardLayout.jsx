@@ -192,8 +192,7 @@ function DashboardLayout() {
     // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
-
-
+  
   const helpRequestDropdownItems = [
     { to: '/help-request/dashboard', label: 'My Help Dashboard' },
     { to: '/help-request', label: 'Browse Requests' },
