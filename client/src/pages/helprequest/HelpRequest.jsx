@@ -175,10 +175,10 @@ function HelpRequest() {
               )}
 
               {/* Responses */}
-              {req.responses.length > 0 && (
+              {(req.responses?.length ?? 0) > 0 && (
                 <div style={styles.responsesSection}>
                   <strong>Responses ({req.responses.length})</strong>
-                  {req.responses.map((resp, i) => (
+                  {req.responses?.map((resp, i) => (
                     <div key={i} style={styles.responseItem}>
                       <div style={styles.responseText}>{resp.text}</div>
                       <div style={styles.responseMeta}>— {resp.helper} • {resp.date}</div>

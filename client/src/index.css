@@ -24,8 +24,10 @@ body {
   --panel-border: rgba(255, 255, 255, 0.12);
 
   /* Industrial accent system (no purple) */
-  --accent: #0284c7; /* Aero Blue */
-  --accent2: #22d3ee; /* Industrial Cyan */
+  --accent: #0284c7;
+  /* Aero Blue */
+  --accent2: #22d3ee;
+  /* Industrial Cyan */
   --accent-rgb: 2, 132, 199;
   --accent2-rgb: 34, 211, 238;
 
