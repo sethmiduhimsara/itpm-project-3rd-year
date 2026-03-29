@@ -16,6 +16,15 @@ const CATEGORIES = [
 const DISCUSSION_STATUSES = ["Open", "Resolved"];
 const SEARCH_MAX_LENGTH = 80;
 const POST_BODY_MAX = 2000;
+const POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const REPLY_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
+const POST_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+]);
 const REPLY_MAX = 500;
 const REPORT_REASON_MIN = 5;
 const REPORT_REASON_MAX = 280;
@@ -46,6 +55,13 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+function getPostImageUrl(imagePath) {
+  const normalized = normalizeText(imagePath);
+  if (!normalized) return "";
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  return `http://localhost:5000${normalized.startsWith("/") ? "" : "/"}${normalized}`;
+}
+
 function StudentDiscussion() {
   const { addActivity } = useActivities();
   const { user } = useAuth();
@@ -55,13 +71,18 @@ function StudentDiscussion() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ title: "", body: "", category: "Exams" });
+  const [postImageFile, setPostImageFile] = useState(null);
+  const [postImagePreviewUrl, setPostImagePreviewUrl] = useState("");
   const [errors, setErrors] = useState({});
   const [activeCategory, setActiveCategory] = useState("All");
   const [replyInputs, setReplyInputs] = useState({});
+  const [replyImageFiles, setReplyImageFiles] = useState({});
+  const [replyImagePreviewUrls, setReplyImagePreviewUrls] = useState({});
   const [replyErrors, setReplyErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [hoveredTab, setHoveredTab] = useState("");
   const [toast, setToast] = useState({ show: false, message: "" });
   const [reportDialog, setReportDialog] = useState({
     open: false,
@@ -71,6 +92,10 @@ function StudentDiscussion() {
     error: "",
   });
   const toastTimerRef = useRef(null);
+  const replyPreviewUrlsRef = useRef({});
+  const createCardWrapRef = useRef(null);
+  const createCardContentRef = useRef(null);
+  const [createCardHeight, setCreateCardHeight] = useState(0);
 
   const showToast = (message) => {
     if (toastTimerRef.current) {
@@ -103,17 +128,64 @@ function StudentDiscussion() {
 
   const selectedPostId = searchParams.get("postId");
 
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+
   useEffect(() => {
     setShowForm(activeView === "create");
   }, [activeView]);
+
+  useEffect(() => {
+    if (!showForm) return;
+    const frameId = requestAnimationFrame(() => {
+      createCardWrapRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [showForm]);
+
+  useEffect(() => {
+    const contentEl = createCardContentRef.current;
+    if (!contentEl) return;
+
+    const updateHeight = () => {
+      setCreateCardHeight(contentEl.scrollHeight);
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => updateHeight());
+      observer.observe(contentEl);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
+  }, []);
+
+  useEffect(() => {
+    replyPreviewUrlsRef.current = replyImagePreviewUrls;
+  }, [replyImagePreviewUrls]);
 
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) {
         clearTimeout(toastTimerRef.current);
       }
+      if (postImagePreviewUrl) {
+        URL.revokeObjectURL(postImagePreviewUrl);
+      }
+      Object.values(replyPreviewUrlsRef.current).forEach((previewUrl) => {
+        if (previewUrl) URL.revokeObjectURL(previewUrl);
+      });
     };
-  }, []);
+  }, [postImagePreviewUrl]);
 
   const validate = () => {
     const newErrors = {};
@@ -136,7 +208,115 @@ function StudentDiscussion() {
       form.category === "All"
     )
       newErrors.category = "Please select a valid category.";
+    if (postImageFile && !POST_IMAGE_MIME_TYPES.has(postImageFile.type)) {
+      newErrors.image = "Only JPG, PNG, WEBP, or GIF images are allowed.";
+    }
+    if (postImageFile && postImageFile.size > POST_IMAGE_MAX_BYTES) {
+      newErrors.image = "Image size must be 5MB or less.";
+    }
     return newErrors;
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) {
+      return;
+    }
+
+    const nextErrors = { ...errors };
+    delete nextErrors.image;
+
+    if (!POST_IMAGE_MIME_TYPES.has(file.type)) {
+      setErrors({
+        ...nextErrors,
+        image: "Only JPG, PNG, WEBP, or GIF images are allowed.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > POST_IMAGE_MAX_BYTES) {
+      setErrors({
+        ...nextErrors,
+        image: "Image size must be 5MB or less.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (postImagePreviewUrl) {
+      URL.revokeObjectURL(postImagePreviewUrl);
+    }
+
+    setPostImageFile(file);
+    setPostImagePreviewUrl(URL.createObjectURL(file));
+    setErrors(nextErrors);
+  };
+
+  const clearSelectedImage = () => {
+    if (postImagePreviewUrl) {
+      URL.revokeObjectURL(postImagePreviewUrl);
+    }
+    setPostImagePreviewUrl("");
+    setPostImageFile(null);
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next.image;
+      return next;
+    });
+  };
+
+  const validateReplyImageFile = (file) => {
+    if (!file) return "";
+    if (!POST_IMAGE_MIME_TYPES.has(file.type)) {
+      return "Only JPG, PNG, WEBP, or GIF images are allowed.";
+    }
+    if (file.size > REPLY_IMAGE_MAX_BYTES) {
+      return "Reply image size must be 3MB or less.";
+    }
+    return "";
+  };
+
+  const handleReplyImageChange = (postId, event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) return;
+
+    const fileError = validateReplyImageFile(file);
+    if (fileError) {
+      setReplyErrors((prev) => ({ ...prev, [postId]: fileError }));
+      event.target.value = "";
+      return;
+    }
+
+    setReplyErrors((prev) => ({ ...prev, [postId]: "" }));
+
+    setReplyImagePreviewUrls((prev) => {
+      if (prev[postId]) URL.revokeObjectURL(prev[postId]);
+      return {
+        ...prev,
+        [postId]: URL.createObjectURL(file),
+      };
+    });
+
+    setReplyImageFiles((prev) => ({
+      ...prev,
+      [postId]: file,
+    }));
+  };
+
+  const clearReplyImage = (postId) => {
+    setReplyImagePreviewUrls((prev) => {
+      if (prev[postId]) URL.revokeObjectURL(prev[postId]);
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
+
+    setReplyImageFiles((prev) => {
+      const next = { ...prev };
+      delete next[postId];
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
@@ -146,16 +326,22 @@ function StudentDiscussion() {
       return;
     }
     try {
-      const payload = {
-        title: normalizeText(form.title),
-        body: normalizeText(form.body),
-        category: form.category,
-      };
-      const res = await api.post("/posts", payload);
+      const payload = new FormData();
+      payload.append("title", normalizeText(form.title));
+      payload.append("body", normalizeText(form.body));
+      payload.append("category", form.category);
+      if (postImageFile) {
+        payload.append("image", postImageFile);
+      }
+
+      const res = await api.post("/posts", payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setPosts((prev) => [res.data, ...prev]);
       setForm({ title: "", body: "", category: "Exams" });
+      clearSelectedImage();
       setErrors({});
-      setShowForm(false);
+      setShowForm(activeView === "create");
       setSuccessMsg("Post created successfully!");
       addActivity({
         type: "Discussion",
@@ -170,6 +356,7 @@ function StudentDiscussion() {
 
   const handleReplySubmit = async (postId) => {
     const reply = normalizeText(replyInputs[postId] || "");
+    const replyImageFile = replyImageFiles[postId] || null;
     const post = posts.find((p) => p._id === postId);
 
     if (!reply) {
@@ -190,6 +377,14 @@ function StudentDiscussion() {
       });
       return;
     }
+    const replyImageError = validateReplyImageFile(replyImageFile);
+    if (replyImageError) {
+      setReplyErrors({
+        ...replyErrors,
+        [postId]: replyImageError,
+      });
+      return;
+    }
     if (post?.discussionStatus === "Resolved") {
       setReplyErrors({
         ...replyErrors,
@@ -200,10 +395,19 @@ function StudentDiscussion() {
 
     const target = post;
     try {
-      const res = await api.post(`/posts/${postId}/replies`, { text: reply });
+      const payload = new FormData();
+      payload.append("text", reply);
+      if (replyImageFile) {
+        payload.append("replyImage", replyImageFile);
+      }
+
+      const res = await api.post(`/posts/${postId}/replies`, payload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       setPosts((prev) => prev.map((p) => (p._id === postId ? res.data : p)));
       setReplyInputs({ ...replyInputs, [postId]: "" });
       setReplyErrors({ ...replyErrors, [postId]: "" });
+      clearReplyImage(postId);
       addActivity({
         type: "Help Given",
         description: `Replied to: ${target?.title ?? "discussion"}`,
@@ -395,9 +599,25 @@ function StudentDiscussion() {
                 key={tab.key}
                 style={{
                   ...styles.viewTabBtn,
+                  ...(hoveredTab === tab.key && activeView !== tab.key
+                    ? styles.viewTabHover
+                    : {}),
                   ...(activeView === tab.key ? styles.viewTabActive : {}),
+                  ...(prefersReducedMotion ? styles.reduceMotion : {}),
                 }}
                 onClick={() => navigate(`/discussion?view=${tab.key}`)}
+                onMouseEnter={() => setHoveredTab(tab.key)}
+                onMouseLeave={() =>
+                  setHoveredTab((current) =>
+                    current === tab.key ? "" : current,
+                  )
+                }
+                onFocus={() => setHoveredTab(tab.key)}
+                onBlur={() =>
+                  setHoveredTab((current) =>
+                    current === tab.key ? "" : current,
+                  )
+                }
               >
                 {tab.label}
               </button>
@@ -441,8 +661,17 @@ function StudentDiscussion() {
         </div>
 
         {/* Post Form */}
-        {showForm && (
-          <div style={styles.card}>
+        <div
+          ref={createCardWrapRef}
+          style={{
+            ...styles.createCardWrap,
+            ...(showForm
+              ? styles.createCardWrapOpen(createCardHeight)
+              : styles.createCardWrapClosed),
+          }}
+          aria-hidden={!showForm}
+        >
+          <div ref={createCardContentRef} style={styles.card}>
             <h3 style={styles.cardTitle}>Create a New Post</h3>
 
             <label style={styles.label}>Category *</label>
@@ -489,11 +718,40 @@ function StudentDiscussion() {
             />
             {errors.body && <span style={styles.error}>{errors.body}</span>}
 
+            <label style={styles.label}>Image (optional)</label>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+              style={styles.fileInput}
+              onChange={handleImageChange}
+            />
+            <div style={styles.fileHint}>
+              Supported: JPG, PNG, WEBP, GIF (max 5MB)
+            </div>
+            {errors.image && <span style={styles.error}>{errors.image}</span>}
+
+            {postImagePreviewUrl && (
+              <div style={styles.imagePreviewWrap}>
+                <img
+                  src={postImagePreviewUrl}
+                  alt="Selected for post"
+                  style={styles.imagePreview}
+                />
+                <button
+                  type="button"
+                  style={styles.removeImageBtn}
+                  onClick={clearSelectedImage}
+                >
+                  Remove Image
+                </button>
+              </div>
+            )}
+
             <button style={styles.submitBtn} onClick={handleSubmit}>
               Post Discussion
             </button>
           </div>
-        )}
+        </div>
 
         {/* Thread View */}
         {activeView === "thread" &&
@@ -537,6 +795,16 @@ function StudentDiscussion() {
 
               <h3 style={styles.postTitle}>{selectedPost.title}</h3>
               <p style={styles.postBody}>{selectedPost.body}</p>
+              {selectedPost.imagePath && (
+                <div style={styles.postImageWrap}>
+                  <img
+                    src={getPostImageUrl(selectedPost.imagePath)}
+                    alt="Post attachment"
+                    style={styles.postImage}
+                    loading="lazy"
+                  />
+                </div>
+              )}
 
               <div style={styles.reactionRow}>
                 <button
@@ -611,6 +879,16 @@ function StudentDiscussion() {
                   <div key={r._id || i} style={styles.replyItemEnhanced}>
                     <div style={{ flex: 1 }}>
                       <div style={styles.replyText}>{r.text}</div>
+                      {r.imagePath && (
+                        <div style={styles.replyImageWrap}>
+                          <img
+                            src={getPostImageUrl(r.imagePath)}
+                            alt="Reply attachment"
+                            style={styles.replyImage}
+                            loading="lazy"
+                          />
+                        </div>
+                      )}
                       <div style={styles.replyMeta}>
                         By {r.author || "Student"} • {r.date}
                       </div>
@@ -651,6 +929,38 @@ function StudentDiscussion() {
                       Reply
                     </button>
                   </div>
+                  <div style={styles.replyAttachRow}>
+                    <label style={styles.replyAttachLabel}>
+                      Add image
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                        style={styles.hiddenFileInput}
+                        onClick={(e) => {
+                          e.currentTarget.value = "";
+                        }}
+                        onChange={(e) =>
+                          handleReplyImageChange(selectedPost._id, e)
+                        }
+                      />
+                    </label>
+                    {replyImagePreviewUrls[selectedPost._id] && (
+                      <button
+                        type="button"
+                        style={styles.replyRemoveImageBtn}
+                        onClick={() => clearReplyImage(selectedPost._id)}
+                      >
+                        Remove image
+                      </button>
+                    )}
+                  </div>
+                  {replyImagePreviewUrls[selectedPost._id] && (
+                    <img
+                      src={replyImagePreviewUrls[selectedPost._id]}
+                      alt="Reply image preview"
+                      style={styles.replyImagePreview}
+                    />
+                  )}
                 </div>
                 {replyErrors[selectedPost._id] && (
                   <span style={styles.error}>
@@ -712,6 +1022,16 @@ function StudentDiscussion() {
 
                 <h3 style={styles.postTitle}>{post.title}</h3>
                 <p style={styles.postBody}>{post.body}</p>
+                {post.imagePath && (
+                  <div style={styles.postImageWrap}>
+                    <img
+                      src={getPostImageUrl(post.imagePath)}
+                      alt="Post attachment"
+                      style={styles.postImage}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
 
                 <div style={styles.reactionRow}>
                   <button
@@ -794,6 +1114,16 @@ function StudentDiscussion() {
                     <div key={r._id || i} style={styles.replyItemEnhanced}>
                       <div style={{ flex: 1 }}>
                         <div style={styles.replyText}>{r.text}</div>
+                        {r.imagePath && (
+                          <div style={styles.replyImageWrap}>
+                            <img
+                              src={getPostImageUrl(r.imagePath)}
+                              alt="Reply attachment"
+                              style={styles.replyImage}
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
                         <div style={styles.replyMeta}>
                           By {r.author || "Student"} • {r.date}
                         </div>
@@ -830,6 +1160,36 @@ function StudentDiscussion() {
                         Reply
                       </button>
                     </div>
+                    <div style={styles.replyAttachRow}>
+                      <label style={styles.replyAttachLabel}>
+                        Add image
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                          style={styles.hiddenFileInput}
+                          onClick={(e) => {
+                            e.currentTarget.value = "";
+                          }}
+                          onChange={(e) => handleReplyImageChange(post._id, e)}
+                        />
+                      </label>
+                      {replyImagePreviewUrls[post._id] && (
+                        <button
+                          type="button"
+                          style={styles.replyRemoveImageBtn}
+                          onClick={() => clearReplyImage(post._id)}
+                        >
+                          Remove image
+                        </button>
+                      )}
+                    </div>
+                    {replyImagePreviewUrls[post._id] && (
+                      <img
+                        src={replyImagePreviewUrls[post._id]}
+                        alt="Reply image preview"
+                        style={styles.replyImagePreview}
+                      />
+                    )}
                   </div>
                   {replyErrors[post._id] && (
                     <span style={styles.error}>{replyErrors[post._id]}</span>
@@ -925,6 +1285,7 @@ const styles = {
     padding: "16px",
     marginBottom: "18px",
     boxShadow: "0 14px 35px rgba(0, 0, 0, 0.14)",
+    transition: "border-color 180ms ease, box-shadow 220ms ease",
   },
   controlTopRow: {
     display: "flex",
@@ -957,11 +1318,29 @@ const styles = {
     fontSize: "13px",
     color: "var(--muted)",
     fontWeight: "700",
+    outline: "none",
+    transform: "translateY(0)",
+    boxShadow: "0 0 0 rgba(0, 0, 0, 0)",
+    transition:
+      "transform 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 220ms ease",
+  },
+  viewTabHover: {
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+    color: "var(--text)",
+    border: "1px solid rgba(var(--accent2-rgb), 0.35)",
+    transform: "translateY(-1px)",
+    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.20)",
   },
   viewTabActive: {
     backgroundColor: "rgba(var(--accent-rgb), 0.20)",
     color: "var(--text)",
     border: "1px solid rgba(var(--accent2-rgb), 0.45)",
+    transform: "translateY(-1px)",
+    boxShadow: "0 6px 14px rgba(var(--accent-rgb), 0.20)",
+  },
+  reduceMotion: {
+    transition: "none",
+    transform: "none",
   },
   success: {
     backgroundColor: "rgba(52, 211, 153, 0.12)",
@@ -1047,6 +1426,26 @@ const styles = {
     fontSize: "12px",
     boxShadow: "0 10px 24px rgba(var(--accent-rgb), 0.25)",
   },
+  createCardWrap: {
+    overflow: "hidden",
+    transformOrigin: "top center",
+    transition:
+      "max-height 280ms ease, opacity 220ms ease, transform 280ms ease, margin-bottom 220ms ease",
+  },
+  createCardWrapOpen: (height) => ({
+    maxHeight: `${Math.max(height, 1)}px`,
+    opacity: 1,
+    transform: "translateY(0)",
+    marginBottom: "24px",
+    pointerEvents: "auto",
+  }),
+  createCardWrapClosed: {
+    maxHeight: "0px",
+    opacity: 0,
+    transform: "translateY(-8px)",
+    marginBottom: "0px",
+    pointerEvents: "none",
+  },
   card: {
     backgroundColor: "var(--panel)",
     borderRadius: "14px",
@@ -1087,6 +1486,48 @@ const styles = {
     boxSizing: "border-box",
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     color: "var(--text)",
+  },
+  fileInput: {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    border: "1.5px dashed var(--panel-border)",
+    marginBottom: "4px",
+    fontSize: "13px",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    color: "var(--text)",
+    boxSizing: "border-box",
+  },
+  fileHint: {
+    color: "var(--muted2)",
+    fontSize: "12px",
+    marginBottom: "8px",
+  },
+  imagePreviewWrap: {
+    borderRadius: "12px",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: "10px",
+    marginBottom: "10px",
+  },
+  imagePreview: {
+    width: "100%",
+    maxHeight: "340px",
+    objectFit: "contain",
+    borderRadius: "10px",
+    display: "block",
+    marginBottom: "10px",
+    backgroundColor: "rgba(2, 6, 23, 0.4)",
+  },
+  removeImageBtn: {
+    border: "1px solid rgba(251, 113, 133, 0.35)",
+    backgroundColor: "rgba(251, 113, 133, 0.12)",
+    color: "var(--danger)",
+    borderRadius: "10px",
+    padding: "7px 12px",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
   },
   inputError: { border: "1.5px solid rgba(251, 113, 133, 0.85)" },
   error: {
@@ -1196,6 +1637,21 @@ const styles = {
     marginBottom: "16px",
     wordBreak: "break-word",
     overflowWrap: "anywhere",
+  },
+  postImageWrap: {
+    borderRadius: "12px",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: "8px",
+    marginBottom: "16px",
+  },
+  postImage: {
+    width: "100%",
+    maxHeight: "460px",
+    objectFit: "contain",
+    borderRadius: "10px",
+    display: "block",
+    backgroundColor: "rgba(2, 6, 23, 0.38)",
   },
   actionClusters: {
     display: "flex",
@@ -1318,6 +1774,21 @@ const styles = {
     border: "1px solid rgba(255, 255, 255, 0.08)",
   },
   replyText: { color: "var(--text)" },
+  replyImageWrap: {
+    marginTop: "8px",
+    borderRadius: "10px",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: "6px",
+  },
+  replyImage: {
+    width: "100%",
+    maxHeight: "260px",
+    objectFit: "contain",
+    borderRadius: "8px",
+    display: "block",
+    backgroundColor: "rgba(2, 6, 23, 0.38)",
+  },
   replyMeta: { color: "var(--muted2)", fontSize: "11px", marginTop: "2px" },
   helpfulBtn: {
     backgroundColor: "rgba(var(--accent-rgb), 0.16)",
@@ -1340,6 +1811,48 @@ const styles = {
     padding: "10px",
   },
   replyForm: { display: "flex", gap: "10px", marginTop: "0" },
+  replyAttachRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginTop: "10px",
+    flexWrap: "wrap",
+  },
+  replyAttachLabel: {
+    border: "1px solid rgba(var(--accent2-rgb), 0.40)",
+    backgroundColor: "rgba(var(--accent-rgb), 0.12)",
+    color: "var(--text)",
+    borderRadius: "9px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "700",
+    cursor: "pointer",
+  },
+  hiddenFileInput: {
+    display: "none",
+  },
+  replyRemoveImageBtn: {
+    border: "1px solid rgba(251, 113, 133, 0.35)",
+    backgroundColor: "rgba(251, 113, 133, 0.12)",
+    color: "var(--danger)",
+    borderRadius: "9px",
+    padding: "6px 10px",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
+  },
+  replyImagePreview: {
+    width: "100%",
+    maxHeight: "240px",
+    objectFit: "contain",
+    borderRadius: "9px",
+    display: "block",
+    marginTop: "10px",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    backgroundColor: "rgba(2, 6, 23, 0.38)",
+    padding: "6px",
+    boxSizing: "border-box",
+  },
   replyInput: {
     flex: 1,
     padding: "10px 12px",

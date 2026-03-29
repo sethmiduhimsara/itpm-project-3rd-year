@@ -53,6 +53,13 @@ function getInitials(name) {
     .toUpperCase();
 }
 
+function getPostImageUrl(imagePath) {
+  const normalized = normalizeText(imagePath);
+  if (!normalized) return "";
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  return `http://localhost:5000${normalized.startsWith("/") ? "" : "/"}${normalized}`;
+}
+
 function AdminDiscussion() {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
@@ -317,6 +324,16 @@ function AdminDiscussion() {
 
               <h3 style={styles.postTitle}>{post.title}</h3>
               <p style={styles.postBody}>{post.body}</p>
+              {post.imagePath && (
+                <div style={styles.postImageWrap}>
+                  <img
+                    src={getPostImageUrl(post.imagePath)}
+                    alt="Post attachment"
+                    style={styles.postImage}
+                    loading="lazy"
+                  />
+                </div>
+              )}
               <p style={styles.postMeta}>Moderator view</p>
               <div style={styles.reactionRow}>
                 <button
@@ -599,6 +616,21 @@ const styles = {
     marginBottom: "8px",
     wordBreak: "break-word",
     overflowWrap: "anywhere",
+  },
+  postImageWrap: {
+    borderRadius: "12px",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: "8px",
+    marginBottom: "12px",
+  },
+  postImage: {
+    width: "100%",
+    maxHeight: "460px",
+    objectFit: "contain",
+    borderRadius: "10px",
+    display: "block",
+    backgroundColor: "rgba(2, 6, 23, 0.38)",
   },
   postMeta: {
     color: "var(--muted2)",
