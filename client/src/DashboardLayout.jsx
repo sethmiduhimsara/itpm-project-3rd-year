@@ -19,14 +19,14 @@ import { useNotifications } from "./contexts/NotificationContext";
 import { useAuth } from "./contexts/AuthContext";
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith('/admin')) return 'Admin Dashboard'
-  if (pathname.startsWith('/discussion')) return 'Student Discussion'
-  if (pathname.startsWith('/resources')) return 'Resource Sharing'
-  if (pathname.startsWith('/help-request/dashboard')) return 'Help Dashboard'
-  if (pathname.startsWith('/help-request/new')) return 'Post Help Request'
-  if (pathname.startsWith('/help-request')) return 'Help Requests'
-  if (pathname.startsWith('/progress')) return 'My Progress'
-  return 'Dashboard'
+  if (pathname.startsWith("/admin")) return "Admin Dashboard";
+  if (pathname.startsWith("/discussion")) return "Student Discussion";
+  if (pathname.startsWith("/resources")) return "Resource Sharing";
+  if (pathname.startsWith("/help-request/dashboard")) return "Help Dashboard";
+  if (pathname.startsWith("/help-request/new")) return "Post Help Request";
+  if (pathname.startsWith("/help-request")) return "Help Requests";
+  if (pathname.startsWith("/progress")) return "My Progress";
+  return "Dashboard";
 }
 
 function SidebarLink({ to, label, icon: Icon, active, onNavigate }) {
@@ -68,6 +68,8 @@ function DropdownLink({
 }) {
   const isOpen = activeDropdown === label;
   const menuId = `${label.toLowerCase().replace(/\s+/g, "-")}-submenu`;
+  const checkSubItemActive =
+    typeof isSubItemActive === "function" ? isSubItemActive : () => false;
 
   return (
     <div className="sidebarDropdownGroup">
@@ -99,7 +101,7 @@ function DropdownLink({
         className={`sidebarSubmenu ${isOpen ? "sidebarSubmenuOpen" : ""}`}
       >
         {items.map((item) => {
-          const isActive = isSubItemActive(item.to);
+          const isActive = checkSubItemActive(item.to);
           const itemClasses = [
             "sidebarSubLink",
             item.kind === "action" ? "sidebarSubLinkAction" : "",
@@ -168,7 +170,7 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
-const navLinks = useMemo(() => {
+  const navLinks = useMemo(() => {
     if (isAdmin) {
       return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
     }
@@ -191,6 +193,8 @@ const navLinks = useMemo(() => {
     // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
+
+  const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
 
   const helpRequestDropdownItems = [
     { to: '/help-request/dashboard', label: 'My Help Dashboard' },
@@ -243,7 +247,7 @@ const navLinks = useMemo(() => {
             <DropdownLink
               label="Help Requests"
               icon={HelpCircle}
-              active={pathname.startsWith('/help-request')}
+              active={pathname.startsWith("/help-request")}
               items={helpRequestDropdownItems}
               activeDropdown={activeDropdown}
               onToggle={setActiveDropdown}

@@ -10,6 +10,9 @@ const ALLOWED_CATEGORIES = new Set([
   "Campus Life",
   "General",
 ]);
+const REPORT_REASON_MIN = 5;
+const REPORT_REASON_MAX = 500;
+const REACTIONS = new Set(["like", "dislike"]);
 
 function normalizeText(value) {
   return String(value || "")
@@ -65,11 +68,9 @@ exports.createPost = async (req, res) => {
         .json({ message: "Title must be between 5 and 100 characters" });
     }
     if (body.length < 10 || body.length > 2000) {
-      return res
-        .status(400)
-        .json({
-          message: "Description must be between 10 and 2000 characters",
-        });
+      return res.status(400).json({
+        message: "Description must be between 10 and 2000 characters",
+      });
     }
     if (!ALLOWED_CATEGORIES.has(category)) {
       return res.status(400).json({ message: "Invalid category" });
@@ -178,6 +179,122 @@ exports.toggleReplyHelpful = async (req, res) => {
     }
 
     reply.helpfulCount = reply.helpfulBy.length;
+    await post.save();
+    res.json(post);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// PATCH /api/posts/:id/reaction  — toggle post like/dislike (mutually exclusive)
+exports.togglePostReaction = async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
+    const reaction = normalizeText(req.body.reaction).toLowerCase();
+    if (!REACTIONS.has(reaction)) {
+      return res.status(400).json({ message: "Invalid reaction type" });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    if (!Array.isArray(post.likedBy)) post.likedBy = [];
+    if (!Array.isArray(post.dislikedBy)) post.dislikedBy = [];
+
+    const userId = String(req.user._id);
+    const hasLiked = post.likedBy.includes(userId);
+    const hasDisliked = post.dislikedBy.includes(userId);
+
+    if (reaction === "like") {
+      if (hasLiked) {
+        post.likedBy = post.likedBy.filter((id) => id !== userId);
+      } else {
+        post.likedBy.push(userId);
+      }
+      if (hasDisliked) {
+        post.dislikedBy = post.dislikedBy.filter((id) => id !== userId);
+      }
+    }
+
+    if (reaction === "dislike") {
+      if (hasDisliked) {
+        post.dislikedBy = post.dislikedBy.filter((id) => id !== userId);
+      } else {
+        post.dislikedBy.push(userId);
+      }
+      if (hasLiked) {
+        post.likedBy = post.likedBy.filter((id) => id !== userId);
+      }
+    }
+
+    post.likesCount = post.likedBy.length;
+    post.dislikesCount = post.dislikedBy.length;
+
+    await post.save();
+    res.json(post);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// POST /api/posts/:id/report  — student/admin can report inappropriate post
+exports.reportPost = async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
+    const reason = normalizeText(req.body.reason);
+    if (
+      reason.length < REPORT_REASON_MIN ||
+      reason.length > REPORT_REASON_MAX
+    ) {
+      return res.status(400).json({
+        message: `Report reason must be between ${REPORT_REASON_MIN} and ${REPORT_REASON_MAX} characters`,
+      });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    const reporterId = String(req.user._id);
+    const existingReportIndex = post.reports.findIndex(
+      (report) => report.reporterId === reporterId,
+    );
+
+    if (existingReportIndex >= 0) {
+      post.reports[existingReportIndex].reason = reason;
+      post.reports[existingReportIndex].createdAt = new Date();
+      post.reports[existingReportIndex].reporterName = req.user.name;
+    } else {
+      post.reports.push({
+        reporterId,
+        reporterName: req.user.name,
+        reason,
+      });
+    }
+
+    await post.save();
+    res.json(post);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// PATCH /api/posts/:id/reports/clear — admin keeps post and clears report queue
+exports.clearReports = async (req, res) => {
+  try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid post id" });
+    }
+
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: "Post not found" });
+
+    post.reports = [];
     await post.save();
     res.json(post);
   } catch (err) {

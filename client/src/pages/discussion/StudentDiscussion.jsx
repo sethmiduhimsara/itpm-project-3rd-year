@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useActivities } from "../../contexts/ActivityContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -17,11 +17,33 @@ const DISCUSSION_STATUSES = ["Open", "Resolved"];
 const SEARCH_MAX_LENGTH = 80;
 const POST_BODY_MAX = 2000;
 const REPLY_MAX = 500;
+const REPORT_REASON_MIN = 5;
+const REPORT_REASON_MAX = 280;
+const REPORT_REASONS = [
+  "Harassment or bullying",
+  "Hate speech or discrimination",
+  "Spam or misleading content",
+  "Violence or harmful content",
+  "Sexual or explicit content",
+  "Other",
+];
 
 function normalizeText(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function getInitials(name) {
+  const normalized = normalizeText(name);
+  if (!normalized) return "U";
+  return normalized
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
 }
 
 function StudentDiscussion() {
@@ -40,6 +62,27 @@ function StudentDiscussion() {
   const [showForm, setShowForm] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [searchText, setSearchText] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "" });
+  const [reportDialog, setReportDialog] = useState({
+    open: false,
+    postId: "",
+    reasonOption: REPORT_REASONS[0],
+    details: "",
+    error: "",
+  });
+  const toastTimerRef = useRef(null);
+
+  const showToast = (message) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast({ show: true, message });
+    toastTimerRef.current = setTimeout(() => {
+      setToast({ show: false, message: "" });
+      toastTimerRef.current = null;
+    }, 2800);
+  };
 
   // Fetch posts from backend on mount
   useEffect(() => {
@@ -63,6 +106,14 @@ function StudentDiscussion() {
   useEffect(() => {
     setShowForm(activeView === "create");
   }, [activeView]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   const validate = () => {
     const newErrors = {};
@@ -199,6 +250,90 @@ function StudentDiscussion() {
       alert(err.response?.data?.message || "Failed to react to reply");
     }
   };
+
+  const hasLikedByMe = (post) =>
+    Array.isArray(post?.likedBy) &&
+    post.likedBy.some((id) => String(id) === String(user?._id));
+
+  const hasDislikedByMe = (post) =>
+    Array.isArray(post?.dislikedBy) &&
+    post.dislikedBy.some((id) => String(id) === String(user?._id));
+
+  const handlePostReaction = async (postId, reaction) => {
+    try {
+      const res = await api.patch(`/posts/${postId}/reaction`, { reaction });
+      setPosts((prev) => prev.map((p) => (p._id === postId ? res.data : p)));
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to react to post");
+    }
+  };
+
+  const openReportDialog = (postId) => {
+    setReportDialog({
+      open: true,
+      postId,
+      reasonOption: REPORT_REASONS[0],
+      details: "",
+      error: "",
+    });
+  };
+
+  const closeReportDialog = () => {
+    setReportDialog({
+      open: false,
+      postId: "",
+      reasonOption: REPORT_REASONS[0],
+      details: "",
+      error: "",
+    });
+  };
+
+  const submitReport = async () => {
+    const details = normalizeText(reportDialog.details);
+    const isOther = reportDialog.reasonOption === "Other";
+    const reason = isOther
+      ? `Other: ${details}`
+      : details
+        ? `${reportDialog.reasonOption} - ${details}`
+        : reportDialog.reasonOption;
+
+    if (isOther && details.length < REPORT_REASON_MIN) {
+      setReportDialog((prev) => ({
+        ...prev,
+        error: `Please enter at least ${REPORT_REASON_MIN} characters for Other reason.`,
+      }));
+      return;
+    }
+    if (reason.length > REPORT_REASON_MAX) {
+      setReportDialog((prev) => ({
+        ...prev,
+        error: `Report reason must be under ${REPORT_REASON_MAX} characters.`,
+      }));
+      return;
+    }
+
+    try {
+      const res = await api.post(`/posts/${reportDialog.postId}/report`, {
+        reason,
+      });
+      setPosts((prev) =>
+        prev.map((p) => (p._id === reportDialog.postId ? res.data : p)),
+      );
+      closeReportDialog();
+      setSuccessMsg("Post reported to admin for review.");
+      setTimeout(() => setSuccessMsg(""), 2500);
+      showToast("Post reported successfully.");
+    } catch (err) {
+      setReportDialog((prev) => ({
+        ...prev,
+        error: err.response?.data?.message || "Failed to report post",
+      }));
+    }
+  };
+
+  const hasReportedByMe = (post) =>
+    Array.isArray(post?.reports) &&
+    post.reports.some((r) => String(r.reporterId) === String(user?._id));
 
   const filteredByCategory =
     activeCategory === "All"
@@ -383,35 +518,95 @@ function StudentDiscussion() {
                   </span>
                 </div>
                 <span style={styles.postMeta}>
-                  {selectedPost.author} •{" "}
                   {new Date(selectedPost.createdAt).toLocaleDateString()}
                 </span>
               </div>
+
+              <div style={styles.authorRow}>
+                <span style={styles.authorAvatar}>
+                  {getInitials(selectedPost.author)}
+                </span>
+                <div style={styles.authorTextBlock}>
+                  <div style={styles.authorName}>{selectedPost.author}</div>
+                  <div style={styles.authorDate}>
+                    Posted on{" "}
+                    {new Date(selectedPost.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+
               <h3 style={styles.postTitle}>{selectedPost.title}</h3>
               <p style={styles.postBody}>{selectedPost.body}</p>
 
+              <div style={styles.reactionRow}>
+                <button
+                  style={{
+                    ...styles.reactionBtn,
+                    ...(hasLikedByMe(selectedPost)
+                      ? styles.reactionLikeActive
+                      : {}),
+                  }}
+                  onClick={() => handlePostReaction(selectedPost._id, "like")}
+                >
+                  👍 {selectedPost.likesCount || 0}
+                </button>
+                <button
+                  style={{
+                    ...styles.reactionBtn,
+                    ...(hasDislikedByMe(selectedPost)
+                      ? styles.reactionDislikeActive
+                      : {}),
+                  }}
+                  onClick={() =>
+                    handlePostReaction(selectedPost._id, "dislike")
+                  }
+                >
+                  👎 {selectedPost.dislikesCount || 0}
+                </button>
+              </div>
+
               {selectedPost.author === user?.name && (
-                <div style={styles.actionRow}>
-                  <button
-                    style={styles.viewThreadBtn}
-                    onClick={() =>
-                      handleDiscussionStatus(
-                        selectedPost._id,
-                        selectedPost.discussionStatus === "Resolved"
-                          ? "Open"
-                          : "Resolved",
-                      )
-                    }
-                  >
-                    {selectedPost.discussionStatus === "Resolved"
-                      ? "Mark Open"
-                      : "Mark Resolved"}
-                  </button>
+                <div style={styles.actionClusters}>
+                  <div style={styles.actionSecondaryGroup}>
+                    <button
+                      style={styles.viewThreadBtn}
+                      onClick={() =>
+                        handleDiscussionStatus(
+                          selectedPost._id,
+                          selectedPost.discussionStatus === "Resolved"
+                            ? "Open"
+                            : "Resolved",
+                        )
+                      }
+                    >
+                      {selectedPost.discussionStatus === "Resolved"
+                        ? "Mark Open"
+                        : "Mark Resolved"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {selectedPost.author !== user?.name && (
+                <div style={styles.actionClusters}>
+                  <div style={styles.actionSecondaryGroup}>
+                    <button
+                      style={styles.reportBtn}
+                      onClick={() => openReportDialog(selectedPost._id)}
+                      disabled={hasReportedByMe(selectedPost)}
+                    >
+                      {hasReportedByMe(selectedPost)
+                        ? "Reported"
+                        : "Report Post"}
+                    </button>
+                  </div>
                 </div>
               )}
 
               <div style={styles.repliesSection}>
-                <strong>Thread Replies ({selectedPost.replies.length})</strong>
+                <div style={styles.repliesHeading}>
+                  Thread Replies ({selectedPost.replies.length})
+                </div>
                 {selectedPost.replies.map((r, i) => (
                   <div key={r._id || i} style={styles.replyItemEnhanced}>
                     <div style={{ flex: 1 }}>
@@ -431,29 +626,31 @@ function StudentDiscussion() {
                     </button>
                   </div>
                 ))}
-                <div style={styles.replyForm}>
-                  <input
-                    style={{
-                      ...styles.replyInput,
-                      ...(replyErrors[selectedPost._id]
-                        ? styles.inputError
-                        : {}),
-                    }}
-                    placeholder="Write a reply..."
-                    value={replyInputs[selectedPost._id] || ""}
-                    onChange={(e) =>
-                      setReplyInputs({
-                        ...replyInputs,
-                        [selectedPost._id]: e.target.value,
-                      })
-                    }
-                  />
-                  <button
-                    style={styles.replyBtn}
-                    onClick={() => handleReplySubmit(selectedPost._id)}
-                  >
-                    Reply
-                  </button>
+                <div style={styles.replyComposerBox}>
+                  <div style={styles.replyForm}>
+                    <input
+                      style={{
+                        ...styles.replyInput,
+                        ...(replyErrors[selectedPost._id]
+                          ? styles.inputError
+                          : {}),
+                      }}
+                      placeholder="Write a reply..."
+                      value={replyInputs[selectedPost._id] || ""}
+                      onChange={(e) =>
+                        setReplyInputs({
+                          ...replyInputs,
+                          [selectedPost._id]: e.target.value,
+                        })
+                      }
+                    />
+                    <button
+                      style={styles.replyBtn}
+                      onClick={() => handleReplySubmit(selectedPost._id)}
+                    >
+                      Reply
+                    </button>
+                  </div>
                 </div>
                 {replyErrors[selectedPost._id] && (
                   <span style={styles.error}>
@@ -497,22 +694,68 @@ function StudentDiscussion() {
                     </span>
                   </div>
                   <span style={styles.postMeta}>
-                    {post.author} •{" "}
                     {new Date(post.createdAt).toLocaleDateString()}
                   </span>
                 </div>
+
+                <div style={styles.authorRow}>
+                  <span style={styles.authorAvatar}>
+                    {getInitials(post.author)}
+                  </span>
+                  <div style={styles.authorTextBlock}>
+                    <div style={styles.authorName}>{post.author}</div>
+                    <div style={styles.authorDate}>
+                      Posted on {new Date(post.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+
                 <h3 style={styles.postTitle}>{post.title}</h3>
                 <p style={styles.postBody}>{post.body}</p>
 
-                <div style={styles.actionRow}>
+                <div style={styles.reactionRow}>
                   <button
-                    style={styles.viewThreadBtn}
-                    onClick={() => openThread(post._id)}
+                    style={{
+                      ...styles.reactionBtn,
+                      ...(hasLikedByMe(post) ? styles.reactionLikeActive : {}),
+                    }}
+                    onClick={() => handlePostReaction(post._id, "like")}
                   >
-                    Open Thread
+                    👍 {post.likesCount || 0}
                   </button>
-                  {post.author === user?.name && (
-                    <>
+                  <button
+                    style={{
+                      ...styles.reactionBtn,
+                      ...(hasDislikedByMe(post)
+                        ? styles.reactionDislikeActive
+                        : {}),
+                    }}
+                    onClick={() => handlePostReaction(post._id, "dislike")}
+                  >
+                    👎 {post.dislikesCount || 0}
+                  </button>
+                </div>
+
+                <div style={styles.actionClusters}>
+                  <div style={styles.actionPrimaryGroup}>
+                    <button
+                      style={styles.viewThreadPrimaryBtn}
+                      onClick={() => openThread(post._id)}
+                    >
+                      Open Thread
+                    </button>
+                  </div>
+                  <div style={styles.actionSecondaryGroup}>
+                    {post.author !== user?.name && (
+                      <button
+                        style={styles.reportBtn}
+                        onClick={() => openReportDialog(post._id)}
+                        disabled={hasReportedByMe(post)}
+                      >
+                        {hasReportedByMe(post) ? "Reported" : "Report Post"}
+                      </button>
+                    )}
+                    {post.author === user?.name && (
                       <button
                         style={styles.viewThreadBtn}
                         onClick={() =>
@@ -528,19 +771,25 @@ function StudentDiscussion() {
                           ? "Mark Open"
                           : "Mark Resolved"}
                       </button>
+                    )}
+                  </div>
+                  {post.author === user?.name && (
+                    <div style={styles.actionDangerGroup}>
                       <button
                         style={styles.deleteBtn}
                         onClick={() => handleDelete(post._id)}
                       >
                         Delete
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
 
                 {/* Replies */}
                 <div style={styles.repliesSection}>
-                  <strong>Replies ({post.replies.length})</strong>
+                  <div style={styles.repliesHeading}>
+                    Replies ({post.replies.length})
+                  </div>
                   {post.replies.map((r, i) => (
                     <div key={r._id || i} style={styles.replyItemEnhanced}>
                       <div style={{ flex: 1 }}>
@@ -558,27 +807,29 @@ function StudentDiscussion() {
                       </button>
                     </div>
                   ))}
-                  <div style={styles.replyForm}>
-                    <input
-                      style={{
-                        ...styles.replyInput,
-                        ...(replyErrors[post._id] ? styles.inputError : {}),
-                      }}
-                      placeholder="Write a reply..."
-                      value={replyInputs[post._id] || ""}
-                      onChange={(e) =>
-                        setReplyInputs({
-                          ...replyInputs,
-                          [post._id]: e.target.value,
-                        })
-                      }
-                    />
-                    <button
-                      style={styles.replyBtn}
-                      onClick={() => handleReplySubmit(post._id)}
-                    >
-                      Reply
-                    </button>
+                  <div style={styles.replyComposerBox}>
+                    <div style={styles.replyForm}>
+                      <input
+                        style={{
+                          ...styles.replyInput,
+                          ...(replyErrors[post._id] ? styles.inputError : {}),
+                        }}
+                        placeholder="Write a reply..."
+                        value={replyInputs[post._id] || ""}
+                        onChange={(e) =>
+                          setReplyInputs({
+                            ...replyInputs,
+                            [post._id]: e.target.value,
+                          })
+                        }
+                      />
+                      <button
+                        style={styles.replyBtn}
+                        onClick={() => handleReplySubmit(post._id)}
+                      >
+                        Reply
+                      </button>
+                    </div>
                   </div>
                   {replyErrors[post._id] && (
                     <span style={styles.error}>{replyErrors[post._id]}</span>
@@ -587,6 +838,76 @@ function StudentDiscussion() {
               </div>
             ))
           ))}
+        {reportDialog.open && (
+          <div style={styles.reportOverlay} role="dialog" aria-modal="true">
+            <div style={styles.reportModal}>
+              <h3 style={styles.reportTitle}>Report Post</h3>
+              <p style={styles.reportHint}>
+                Select the main reason so admins can review quickly.
+              </p>
+
+              <label style={styles.label}>Reason *</label>
+              <select
+                style={styles.selectInput}
+                value={reportDialog.reasonOption}
+                onChange={(e) =>
+                  setReportDialog((prev) => ({
+                    ...prev,
+                    reasonOption: e.target.value,
+                    error: "",
+                  }))
+                }
+              >
+                {REPORT_REASONS.map((reason) => (
+                  <option
+                    key={reason}
+                    value={reason}
+                    style={styles.selectOption}
+                  >
+                    {reason}
+                  </option>
+                ))}
+              </select>
+
+              <label style={styles.label}>Additional Details</label>
+              <textarea
+                style={styles.textarea}
+                rows={3}
+                placeholder="Optional details for admin review"
+                value={reportDialog.details}
+                onChange={(e) =>
+                  setReportDialog((prev) => ({
+                    ...prev,
+                    details: e.target.value,
+                    error: "",
+                  }))
+                }
+              />
+
+              {reportDialog.error && (
+                <span style={styles.error}>{reportDialog.error}</span>
+              )}
+
+              <div style={styles.reportActionRow}>
+                <button
+                  style={styles.reportCancelBtn}
+                  onClick={closeReportDialog}
+                >
+                  Cancel
+                </button>
+                <button style={styles.reportSubmitBtn} onClick={submitReport}>
+                  Submit Report
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {toast.show && (
+          <div style={styles.toast} role="status" aria-live="polite">
+            {toast.message}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -789,7 +1110,7 @@ const styles = {
   postCard: {
     backgroundColor: "var(--panel)",
     borderRadius: "14px",
-    padding: "20px",
+    padding: "22px",
     marginBottom: "16px",
     boxShadow: "0 18px 45px rgba(0, 0, 0, 0.18)",
     border: "1px solid var(--panel-border)",
@@ -798,7 +1119,9 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "8px",
+    marginBottom: "10px",
+    gap: "10px",
+    flexWrap: "wrap",
   },
   badgeRow: {
     display: "flex",
@@ -833,46 +1156,154 @@ const styles = {
     border: "1px solid rgba(96, 165, 250, 0.40)",
   },
   postMeta: { color: "var(--muted2)", fontSize: "12px" },
-  postTitle: { fontSize: "17px", color: "var(--text)", marginBottom: "6px" },
+  authorRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "10px",
+  },
+  authorAvatar: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "999px",
+    backgroundColor: "rgba(var(--accent-rgb), 0.22)",
+    border: "1px solid rgba(var(--accent2-rgb), 0.45)",
+    color: "var(--text)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "13px",
+    fontWeight: "800",
+    flexShrink: 0,
+  },
+  authorTextBlock: { display: "flex", flexDirection: "column", gap: "2px" },
+  authorName: { color: "var(--text)", fontSize: "14px", fontWeight: "700" },
+  authorDate: { color: "var(--muted2)", fontSize: "12px" },
+  postTitle: {
+    fontSize: "clamp(20px, 2.3vw, 28px)",
+    color: "var(--text)",
+    marginBottom: "10px",
+    lineHeight: "1.2",
+    letterSpacing: "-0.01em",
+    fontWeight: "800",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+  },
   postBody: {
     color: "var(--muted)",
-    fontSize: "14px",
-    lineHeight: "1.6",
-    marginBottom: "12px",
+    fontSize: "clamp(15px, 1.4vw, 18px)",
+    lineHeight: "1.65",
+    marginBottom: "16px",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
-  actionRow: {
+  actionClusters: {
+    display: "flex",
+    gap: "10px 12px",
+    alignItems: "flex-start",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+  },
+  actionPrimaryGroup: {
     display: "flex",
     gap: "10px",
-    alignItems: "center",
-    marginBottom: "12px",
     flexWrap: "wrap",
+  },
+  actionSecondaryGroup: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  actionDangerGroup: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  reactionRow: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+  },
+  reactionBtn: {
+    border: "1px solid var(--panel-border)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    color: "var(--text)",
+    padding: "8px 14px",
+    minHeight: "38px",
+    borderRadius: "999px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "700",
+    minWidth: "84px",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
+    transition: "transform 120ms ease, border-color 120ms ease",
+  },
+  reactionLikeActive: {
+    backgroundColor: "rgba(52, 211, 153, 0.18)",
+    border: "1px solid rgba(52, 211, 153, 0.5)",
+    color: "#6ee7b7",
+  },
+  reactionDislikeActive: {
+    backgroundColor: "rgba(251, 113, 133, 0.16)",
+    border: "1px solid rgba(251, 113, 133, 0.45)",
+    color: "#fda4af",
   },
   viewThreadBtn: {
     backgroundColor: "rgba(var(--accent2-rgb), 0.22)",
     color: "var(--text)",
     border: "1px solid rgba(var(--accent2-rgb), 0.42)",
-    padding: "6px 12px",
-    minHeight: "34px",
+    padding: "8px 14px",
+    minHeight: "38px",
     borderRadius: "10px",
     cursor: "pointer",
-    fontSize: "12px",
+    fontSize: "13px",
     fontWeight: "700",
+  },
+  viewThreadPrimaryBtn: {
+    backgroundColor: "rgba(var(--accent-rgb), 0.24)",
+    color: "var(--text)",
+    border: "1px solid rgba(var(--accent2-rgb), 0.55)",
+    padding: "8px 15px",
+    minHeight: "38px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontSize: "13px",
+    fontWeight: "800",
+    boxShadow: "0 10px 20px rgba(var(--accent-rgb), 0.2)",
   },
   deleteBtn: {
     backgroundColor: "rgba(251, 113, 133, 0.12)",
     color: "var(--danger)",
     border: "1px solid rgba(251, 113, 133, 0.35)",
-    padding: "6px 12px",
-    minHeight: "34px",
+    padding: "8px 14px",
+    minHeight: "38px",
     borderRadius: "10px",
     cursor: "pointer",
-    fontSize: "12px",
-    marginBottom: "12px",
+    fontSize: "13px",
+    fontWeight: "700",
+  },
+  reportBtn: {
+    backgroundColor: "rgba(245, 158, 11, 0.13)",
+    color: "#fbbf24",
+    border: "1px solid rgba(245, 158, 11, 0.42)",
+    padding: "8px 14px",
+    minHeight: "38px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontSize: "13px",
     fontWeight: "700",
   },
   repliesSection: {
     borderTop: "1px solid rgba(255, 255, 255, 0.10)",
-    paddingTop: "12px",
+    paddingTop: "14px",
+    marginTop: "2px",
+  },
+  repliesHeading: {
+    color: "var(--text)",
+    fontSize: "14px",
+    fontWeight: "800",
+    marginBottom: "10px",
   },
   replyItemEnhanced: {
     display: "flex",
@@ -882,7 +1313,7 @@ const styles = {
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     padding: "8px 12px",
     borderRadius: "12px",
-    marginTop: "8px",
+    marginTop: "10px",
     fontSize: "13px",
     border: "1px solid rgba(255, 255, 255, 0.08)",
   },
@@ -901,13 +1332,21 @@ const styles = {
     whiteSpace: "nowrap",
   },
   replyDate: { color: "var(--muted2)", fontSize: "11px", fontWeight: "600" },
-  replyForm: { display: "flex", gap: "8px", marginTop: "10px" },
+  replyComposerBox: {
+    marginTop: "12px",
+    borderRadius: "12px",
+    border: "1px solid rgba(255,255,255,0.10)",
+    backgroundColor: "rgba(15, 23, 42, 0.35)",
+    padding: "10px",
+  },
+  replyForm: { display: "flex", gap: "10px", marginTop: "0" },
   replyInput: {
     flex: 1,
-    padding: "8px 12px",
+    padding: "10px 12px",
     borderRadius: "10px",
     border: "1.5px solid var(--panel-border)",
     fontSize: "13px",
+    minHeight: "40px",
     outline: "none",
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     color: "var(--text)",
@@ -916,11 +1355,12 @@ const styles = {
     backgroundColor: "var(--accent)",
     color: "var(--bg)",
     border: "none",
-    padding: "8px 14px",
-    minHeight: "36px",
+    padding: "10px 16px",
+    minHeight: "40px",
+    minWidth: "96px",
     borderRadius: "10px",
     cursor: "pointer",
-    fontSize: "13px",
+    fontSize: "14px",
     fontWeight: "800",
   },
   emptyState: {
@@ -930,6 +1370,74 @@ const styles = {
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: "14px",
     border: "1px dashed rgba(var(--accent2-rgb), 0.35)",
+  },
+  reportOverlay: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(2, 6, 23, 0.72)",
+    display: "grid",
+    placeItems: "center",
+    padding: "20px",
+    zIndex: 80,
+  },
+  reportModal: {
+    width: "100%",
+    maxWidth: "520px",
+    borderRadius: "14px",
+    border: "1px solid var(--panel-border)",
+    backgroundColor: "#111827",
+    boxShadow: "0 22px 48px rgba(0, 0, 0, 0.45)",
+    padding: "18px",
+  },
+  reportTitle: {
+    margin: 0,
+    color: "var(--text)",
+    fontSize: "20px",
+  },
+  reportHint: {
+    margin: "6px 0 14px",
+    color: "var(--muted)",
+    fontSize: "13px",
+  },
+  reportActionRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    marginTop: "10px",
+  },
+  reportCancelBtn: {
+    border: "1px solid rgba(255,255,255,0.20)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    color: "var(--text)",
+    borderRadius: "10px",
+    padding: "8px 14px",
+    minHeight: "36px",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+  reportSubmitBtn: {
+    border: "1px solid rgba(245, 158, 11, 0.45)",
+    backgroundColor: "rgba(245, 158, 11, 0.20)",
+    color: "#fbbf24",
+    borderRadius: "10px",
+    padding: "8px 14px",
+    minHeight: "36px",
+    cursor: "pointer",
+    fontWeight: "800",
+  },
+  toast: {
+    position: "fixed",
+    right: "22px",
+    bottom: "22px",
+    borderRadius: "12px",
+    border: "1px solid rgba(52, 211, 153, 0.45)",
+    backgroundColor: "rgba(52, 211, 153, 0.16)",
+    color: "#34d399",
+    padding: "10px 14px",
+    fontSize: "13px",
+    fontWeight: "800",
+    zIndex: 90,
+    boxShadow: "0 14px 28px rgba(0, 0, 0, 0.35)",
   },
 };
 
