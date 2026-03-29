@@ -36,10 +36,11 @@ connectDB()
 app.use('/api/auth', require('./routes/auth'))
 
 // ── Protected routes (must be logged in) ────────────────────────────────────
-app.use('/api/posts',         protect, require('./routes/posts'))
-app.use('/api/resources',     protect, require('./routes/resources'))
-app.use('/api/help-requests', protect, require('./routes/helpRequests'))
-app.use('/api/activities',    protect, require('./routes/activities'))
+app.use('/api/posts',          protect, require('./routes/posts'))
+app.use('/api/resources',      protect, require('./routes/resources'))
+app.use('/api/help-requests',  protect, require('./routes/helpRequests'))
+app.use('/api/activities',     protect, require('./routes/activities'))
+app.use('/api/notifications',  protect, require('./routes/notifications'))
 
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`))

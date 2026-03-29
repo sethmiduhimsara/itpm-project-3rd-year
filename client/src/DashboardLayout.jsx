@@ -165,6 +165,8 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
+  const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
+
 const navLinks = useMemo(() => {
     if (isAdmin) {
       return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
@@ -245,6 +247,7 @@ const navLinks = useMemo(() => {
               activeDropdown={activeDropdown}
               onToggle={setActiveDropdown}
               onNavigate={() => setSidebarOpen(false)}
+              isSubItemActive={isSubItemActive}
             />
           )}
 
