@@ -9,6 +9,16 @@ const replySchema = new mongoose.Schema({
   helpfulCount: { type: Number, default: 0, min: 0 },
 });
 
+const reportSchema = new mongoose.Schema(
+  {
+    reporterId: { type: String, required: true },
+    reporterName: { type: String, required: true, minlength: 2 },
+    reason: { type: String, required: true, minlength: 5, maxlength: 500 },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false },
+);
+
 const postSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, minlength: 5, maxlength: 100 },
@@ -26,7 +36,12 @@ const postSchema = new mongoose.Schema(
       enum: ["Open", "Resolved"],
       default: "Open",
     },
+    likedBy: { type: [String], default: [] },
+    dislikedBy: { type: [String], default: [] },
+    likesCount: { type: Number, default: 0, min: 0 },
+    dislikesCount: { type: Number, default: 0, min: 0 },
     replies: [replySchema],
+    reports: { type: [reportSchema], default: [] },
   },
   { timestamps: true },
 );
