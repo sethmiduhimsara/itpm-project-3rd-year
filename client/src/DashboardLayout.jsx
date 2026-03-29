@@ -136,6 +136,9 @@ function DropdownLink({
 function DashboardLayout() {
   const { pathname, search } = useLocation();
   const navigate = useNavigate();
+
+  const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -173,7 +176,7 @@ function DashboardLayout() {
     }
     return [
       { to: "/resources", label: "Resources", icon: BookOpen },
-      { to: "/help-request", label: "Help Requests", icon: HelpCircle },
+      //{ to: "/help-request", label: "Help Requests", icon: HelpCircle },
     ];
   }, [isAdmin]);
 
@@ -194,11 +197,11 @@ function DashboardLayout() {
   const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
 
   const helpRequestDropdownItems = [
-    { to: "/help-request", label: "Browse Requests" },
-    { to: "/help-request/dashboard", label: "My Help Dashboard" },
-    { to: "/help-request/accepted", label: "My Accepted Tasks" },
-    { to: "/help-request/new", label: "Post New Request" },
-  ];
+    { to: '/help-request/dashboard', label: 'My Help Dashboard' },
+    { to: '/help-request', label: 'Browse Requests' },
+    { to: '/help-request/accepted', label: 'My Accepted Tasks' },
+    { to: '/help-request/new', label: 'Post New Request' },
+  ]
 
   return (
     <div className={`dashboardShell ${sidebarOpen ? "sidebarOpen" : ""}`}>
