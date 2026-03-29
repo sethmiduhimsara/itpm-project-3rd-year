@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../../api";
 
 const CATEGORIES = [
@@ -20,29 +20,70 @@ function normalizeText(value) {
 function AdminDiscussion() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const successTimerRef = useRef(null);
+
+  const clearSuccessTimer = () => {
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+  };
+
+  const showSuccess = (message) => {
+    clearSuccessTimer();
+    setSuccessMsg(message);
+    successTimerRef.current = setTimeout(() => {
+      setSuccessMsg("");
+      successTimerRef.current = null;
+    }, 3000);
+  };
 
   // Fetch all posts from backend on mount
   useEffect(() => {
-    api
-      .get("/posts")
-      .then((res) => {
-        setPosts(res.data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+    let mounted = true;
+
+    const loadPosts = async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const res = await api.get("/posts");
+        if (!mounted) return;
+        setPosts(Array.isArray(res.data) ? res.data : []);
+      } catch (err) {
+        if (!mounted) return;
+        setLoadError(
+          err.response?.data?.message || "Failed to load discussion posts.",
+        );
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadPosts();
+
+    return () => {
+      mounted = false;
+      clearSuccessTimer();
+    };
+  }, [reloadKey]);
 
   const handleHide = async (id) => {
     try {
       const post = posts.find((p) => p._id === id);
+      if (!post) {
+        alert("Post not found. Please refresh and try again.");
+        return;
+      }
+
       const newStatus = post.status === "Hidden" ? "Visible" : "Hidden";
       const res = await api.patch(`/posts/${id}/status`, { status: newStatus });
-      setPosts(posts.map((p) => (p._id === id ? res.data : p)));
-      setSuccessMsg("Post status updated!");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setPosts((prev) => prev.map((p) => (p._id === id ? res.data : p)));
+      showSuccess("Post status updated!");
     } catch (err) {
       alert(err.response?.data?.message || "Failed to update status");
     }
@@ -52,9 +93,8 @@ function AdminDiscussion() {
     if (window.confirm("Permanently delete this post?")) {
       try {
         await api.delete(`/posts/${id}`);
-        setPosts(posts.filter((p) => p._id !== id));
-        setSuccessMsg("Post deleted!");
-        setTimeout(() => setSuccessMsg(""), 3000);
+        setPosts((prev) => prev.filter((p) => p._id !== id));
+        showSuccess("Post deleted!");
       } catch (err) {
         alert(err.response?.data?.message || "Failed to delete post");
       }
@@ -78,6 +118,19 @@ function AdminDiscussion() {
         <p style={styles.subheading}>Review, hide, or remove student posts.</p>
 
         {successMsg && <div style={styles.success}>{successMsg}</div>}
+
+        {loadError && (
+          <div style={styles.errorBox}>
+            <span>{loadError}</span>
+            <button
+              type="button"
+              style={styles.retryBtn}
+              onClick={() => setReloadKey((v) => v + 1)}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* Stats */}
         <div style={styles.statsRow}>
@@ -189,6 +242,30 @@ const styles = {
     marginBottom: "16px",
     fontWeight: "600",
     border: "1px solid rgba(52, 211, 153, 0.25)",
+  },
+  errorBox: {
+    backgroundColor: "rgba(251, 113, 133, 0.12)",
+    color: "var(--danger)",
+    padding: "12px",
+    borderRadius: "10px",
+    marginBottom: "16px",
+    fontWeight: "600",
+    border: "1px solid rgba(251, 113, 133, 0.25)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+  },
+  retryBtn: {
+    border: "1px solid rgba(var(--accent2-rgb), 0.5)",
+    backgroundColor: "rgba(var(--accent-rgb), 0.16)",
+    color: "var(--text)",
+    borderRadius: "10px",
+    padding: "7px 12px",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "700",
+    flexShrink: 0,
   },
   statsRow: {
     display: "flex",
