@@ -194,8 +194,6 @@ function DashboardLayout() {
     { to: "/progress?tab=progress", label: "Progress" },
   ];
 
-  const isSubItemActive = (to) => isRouteMatch(to, pathname, search);
-
   const helpRequestDropdownItems = [
     { to: '/help-request/dashboard', label: 'My Help Dashboard' },
     { to: '/help-request', label: 'Browse Requests' },
