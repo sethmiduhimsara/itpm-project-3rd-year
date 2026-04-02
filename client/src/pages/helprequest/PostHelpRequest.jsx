@@ -5,7 +5,6 @@ import { useActivities } from '../../contexts/ActivityContext'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api'
 
-const SUBJECTS = ['Mathematics', 'Software Engineering', 'Database', 'Networks', 'ITPM', 'Other']
 const URGENCY_LEVELS = ['Low', 'Medium', 'High']
 const VISIBILITY_MODES = ['Public', 'Private']
 
@@ -16,7 +15,7 @@ function PostHelpRequest() {
   const { user } = useAuth()
 
   const [form, setForm] = useState({
-    subject: 'ITPM',
+    subject: '',
     title: '',
     description: '',
     visibility: 'Public',
@@ -28,18 +27,50 @@ function PostHelpRequest() {
   const [serverError, setServerError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const validateField = (name, value) => {
+    if (name === 'subject' || name === 'title') {
+      const regex = /^[a-zA-Z\s]*$/
+      if (!regex.test(value)) {
+        return 'Only letters and spaces are allowed.'
+      }
+    }
+    return ''
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
+
+    const fieldError = validateField(name, value)
+    setErrors(prev => ({ ...prev, [name]: fieldError }))
+  }
+
   const validate = () => {
     const newErrors = {}
-    if (!form.title.trim()) newErrors.title = 'Title is required.'
-    else if (form.title.trim().length < 5) newErrors.title = 'Title must be at least 5 characters.'
-    
+
+    // Check required and alphabetic for subject
+    if (!form.subject.trim()) {
+      newErrors.subject = 'Subject is required.'
+    } else if (!/^[a-zA-Z\s]+$/.test(form.subject)) {
+      newErrors.subject = 'Only letters and spaces are allowed.'
+    }
+
+    // Check required and alphabetic for title
+    if (!form.title.trim()) {
+      newErrors.title = 'Title is required.'
+    } else if (!/^[a-zA-Z\s]+$/.test(form.title)) {
+      newErrors.title = 'Only letters and spaces are allowed.'
+    } else if (form.title.trim().length < 5) {
+      newErrors.title = 'Title must be at least 5 characters.'
+    }
+
     if (!form.description.trim()) newErrors.description = 'Description is required.'
     else if (form.description.trim().length < 10) newErrors.description = 'Description must be at least 10 characters.'
-    
+
     if (form.visibility === 'Private' && !form.targetStudent.trim()) {
       newErrors.targetStudent = 'Target student name is required for private requests.'
     }
-    
+
     return newErrors
   }
 
@@ -73,11 +104,11 @@ function PostHelpRequest() {
         title: 'Help Request Posted',
         message: `Your request "${form.title}" is now live.`
       })
-      
-      addActivity({ 
-        type: 'Help Received', 
-        description: `Posted help request: ${form.title}`, 
-        date: new Date().toISOString() 
+
+      addActivity({
+        type: 'Help Received',
+        description: `Posted help request: ${form.title}`,
+        date: new Date().toISOString()
       })
 
       navigate('/help-request')
@@ -105,18 +136,19 @@ function PostHelpRequest() {
 
         <form style={styles.card} onSubmit={handleSubmit}>
           {serverError && <div style={styles.serverError}>{serverError}</div>}
-          
+
           {/* Row 1: Subject & Urgency */}
           <div style={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>Subject *</label>
-              <select 
-                style={styles.input} 
-                value={form.subject} 
-                onChange={e => setForm({ ...form, subject: e.target.value })}
-              >
-                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <input
+                name="subject"
+                style={{ ...styles.input, ...(errors.subject ? styles.inputError : {}) }}
+                placeholder="e.g., Mathematics, Database, ITPM"
+                value={form.subject}
+                onChange={handleInputChange}
+              />
+              {errors.subject && <span style={styles.error}>{errors.subject}</span>}
             </div>
             <div style={styles.field}>
               <label style={styles.label}>Urgency *</label>
@@ -125,9 +157,9 @@ function PostHelpRequest() {
                   <button
                     key={level}
                     type="button"
-                    style={{ 
-                      ...styles.toggleBtn, 
-                      ...(form.urgency === level ? styles.toggleActive : {}) 
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(form.urgency === level ? styles.toggleActive : {})
                     }}
                     onClick={() => setForm({ ...form, urgency: level })}
                   >
@@ -140,17 +172,18 @@ function PostHelpRequest() {
 
           {/* Title */}
           <label style={styles.label}>Title *</label>
-          <input 
+          <input
+            name="title"
             style={{ ...styles.input, ...(errors.title ? styles.inputError : {}) }}
             placeholder="Sumarize your question (e.g., Struggling with MongoDB aggregation)"
             value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
+            onChange={handleInputChange}
           />
           {errors.title && <span style={styles.error}>{errors.title}</span>}
 
           {/* Description */}
           <label style={styles.label}>Description *</label>
-          <textarea 
+          <textarea
             style={{ ...styles.textarea, ...(errors.description ? styles.inputError : {}) }}
             placeholder="Provide context, what you've tried, and specific questions..."
             rows={6}
@@ -163,9 +196,9 @@ function PostHelpRequest() {
           <div style={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>Attachment (Image or PDF)</label>
-              <input 
-                type="file" 
-                style={styles.fileInput} 
+              <input
+                type="file"
+                style={styles.fileInput}
                 onChange={e => setForm({ ...form, file: e.target.files[0] })}
                 accept="image/*,.pdf"
               />
@@ -177,9 +210,9 @@ function PostHelpRequest() {
                   <button
                     key={mode}
                     type="button"
-                    style={{ 
-                      ...styles.toggleBtn, 
-                      ...(form.visibility === mode ? styles.toggleActive : {}) 
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(form.visibility === mode ? styles.toggleActive : {})
                     }}
                     onClick={() => setForm({ ...form, visibility: mode })}
                   >
@@ -194,7 +227,7 @@ function PostHelpRequest() {
           {form.visibility === 'Private' && (
             <div style={{ marginBottom: '20px' }}>
               <label style={styles.label}>Target Student Name *</label>
-              <input 
+              <input
                 style={{ ...styles.input, ...(errors.targetStudent ? styles.inputError : {}) }}
                 placeholder="Enter the name of the student you want to share with"
                 value={form.targetStudent}
@@ -205,16 +238,16 @@ function PostHelpRequest() {
           )}
 
           <div style={styles.footer}>
-            <button 
-              type="button" 
-              style={styles.cancelBtn} 
+            <button
+              type="button"
+              style={styles.cancelBtn}
               onClick={() => navigate('/help-request')}
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
-              style={styles.submitBtn} 
+            <button
+              type="submit"
+              style={styles.submitBtn}
               disabled={loading}
             >
               {loading ? 'Posting...' : 'Post Request'}
@@ -242,15 +275,15 @@ const styles = {
   fileInput: { color: 'var(--muted2)', fontSize: '13px' },
   inputError: { border: '1.5px solid var(--danger)' },
   error: { color: 'var(--danger)', fontSize: '12px', marginTop: '-5px', marginBottom: '15px', display: 'block', fontWeight: '600' },
-  serverError: { 
-    backgroundColor: 'rgba(239, 68, 68, 0.12)', 
-    color: '#ef4444', 
-    padding: '14px', 
-    borderRadius: '12px', 
-    marginBottom: '20px', 
-    fontSize: '14px', 
-    fontWeight: '700', 
-    border: '1px solid rgba(239, 68, 68, 0.3)' 
+  serverError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+    color: '#ef4444',
+    padding: '14px',
+    borderRadius: '12px',
+    marginBottom: '20px',
+    fontSize: '14px',
+    fontWeight: '700',
+    border: '1px solid rgba(239, 68, 68, 0.3)'
   },
   toggleGroup: { display: 'flex', gap: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '4px', borderRadius: '10px', border: '1px solid var(--panel-border)' },
   toggleBtn: { flex: 1, padding: '8px 12px', border: 'none', borderRadius: '8px', backgroundColor: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: '13px', fontWeight: '700', transition: 'all 0.2s' },

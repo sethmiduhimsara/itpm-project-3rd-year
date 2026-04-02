@@ -4,7 +4,6 @@ import { useNotifications } from '../../contexts/NotificationContext'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api'
 
-const SUBJECTS = ['Mathematics', 'Software Engineering', 'Database', 'Networks', 'ITPM', 'Other']
 const URGENCY_LEVELS = ['Low', 'Medium', 'High']
 const VISIBILITY_MODES = ['Public', 'Private']
 
@@ -15,7 +14,7 @@ function EditHelpRequest() {
   const { user } = useAuth()
 
   const [form, setForm] = useState({
-    subject: 'ITPM',
+    subject: '',
     title: '',
     description: '',
     visibility: 'Public',
@@ -33,7 +32,7 @@ function EditHelpRequest() {
       try {
         const res = await api.get(`/help-requests/${id}`)
         const data = res.data
-        
+
         // Authorization check
         if (user.role !== 'admin' && data.requester !== user.name) {
           pushNotification({ title: 'Access Denied', message: 'You cannot edit this request.' })
@@ -59,18 +58,50 @@ function EditHelpRequest() {
     fetchRequest()
   }, [id, user, navigate, pushNotification])
 
+  const validateField = (name, value) => {
+    if (name === 'subject' || name === 'title') {
+      const regex = /^[a-zA-Z\s]*$/
+      if (!regex.test(value)) {
+        return 'Only letters and spaces are allowed.'
+      }
+    }
+    return ''
+  }
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
+
+    const fieldError = validateField(name, value)
+    setErrors(prev => ({ ...prev, [name]: fieldError }))
+  }
+
   const validate = () => {
     const newErrors = {}
-    if (!form.title.trim()) newErrors.title = 'Title is required.'
-    else if (form.title.trim().length < 5) newErrors.title = 'Title must be at least 5 characters.'
-    
+
+    // Check required and alphabetic for subject
+    if (!form.subject.trim()) {
+      newErrors.subject = 'Subject is required.'
+    } else if (!/^[a-zA-Z\s]+$/.test(form.subject)) {
+      newErrors.subject = 'Only letters and spaces are allowed.'
+    }
+
+    // Check required and alphabetic for title
+    if (!form.title.trim()) {
+      newErrors.title = 'Title is required.'
+    } else if (!/^[a-zA-Z\s]+$/.test(form.title)) {
+      newErrors.title = 'Only letters and spaces are allowed.'
+    } else if (form.title.trim().length < 5) {
+      newErrors.title = 'Title must be at least 5 characters.'
+    }
+
     if (!form.description.trim()) newErrors.description = 'Description is required.'
     else if (form.description.trim().length < 10) newErrors.description = 'Description must be at least 10 characters.'
-    
+
     if (form.visibility === 'Private' && !form.targetStudent.trim()) {
       newErrors.targetStudent = 'Target student name is required for private requests.'
     }
-    
+
     return newErrors
   }
 
@@ -125,17 +156,18 @@ function EditHelpRequest() {
 
         <form style={styles.card} onSubmit={handleSubmit}>
           {serverError && <div style={styles.serverError}>{serverError}</div>}
-          
+
           <div style={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>Subject *</label>
-              <select 
-                style={styles.input} 
-                value={form.subject} 
-                onChange={e => setForm({ ...form, subject: e.target.value })}
-              >
-                {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
+              <input
+                name="subject"
+                style={{ ...styles.input, ...(errors.subject ? styles.inputError : {}) }}
+                placeholder="e.g., Mathematics, Database, ITPM"
+                value={form.subject}
+                onChange={handleInputChange}
+              />
+              {errors.subject && <span style={styles.error}>{errors.subject}</span>}
             </div>
             <div style={styles.field}>
               <label style={styles.label}>Urgency *</label>
@@ -144,9 +176,9 @@ function EditHelpRequest() {
                   <button
                     key={level}
                     type="button"
-                    style={{ 
-                      ...styles.toggleBtn, 
-                      ...(form.urgency === level ? styles.toggleActive : {}) 
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(form.urgency === level ? styles.toggleActive : {})
                     }}
                     onClick={() => setForm({ ...form, urgency: level })}
                   >
@@ -158,16 +190,17 @@ function EditHelpRequest() {
           </div>
 
           <label style={styles.label}>Title *</label>
-          <input 
+          <input
+            name="title"
             style={{ ...styles.input, ...(errors.title ? styles.inputError : {}) }}
             placeholder="Sumarize your question"
             value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
+            onChange={handleInputChange}
           />
           {errors.title && <span style={styles.error}>{errors.title}</span>}
 
           <label style={styles.label}>Description *</label>
-          <textarea 
+          <textarea
             style={{ ...styles.textarea, ...(errors.description ? styles.inputError : {}) }}
             placeholder="Provide context..."
             rows={6}
@@ -179,9 +212,9 @@ function EditHelpRequest() {
           <div style={styles.row}>
             <div style={styles.field}>
               <label style={styles.label}>Replace Attachment (Optional)</label>
-              <input 
-                type="file" 
-                style={styles.fileInput} 
+              <input
+                type="file"
+                style={styles.fileInput}
                 onChange={e => setForm({ ...form, file: e.target.files[0] })}
                 accept="image/*,.pdf"
               />
@@ -193,9 +226,9 @@ function EditHelpRequest() {
                   <button
                     key={mode}
                     type="button"
-                    style={{ 
-                      ...styles.toggleBtn, 
-                      ...(form.visibility === mode ? styles.toggleActive : {}) 
+                    style={{
+                      ...styles.toggleBtn,
+                      ...(form.visibility === mode ? styles.toggleActive : {})
                     }}
                     onClick={() => setForm({ ...form, visibility: mode })}
                   >
@@ -209,7 +242,7 @@ function EditHelpRequest() {
           {form.visibility === 'Private' && (
             <div style={{ marginBottom: '20px' }}>
               <label style={styles.label}>Target Student Name *</label>
-              <input 
+              <input
                 style={{ ...styles.input, ...(errors.targetStudent ? styles.inputError : {}) }}
                 placeholder="Enter the name of the student"
                 value={form.targetStudent}
@@ -220,16 +253,16 @@ function EditHelpRequest() {
           )}
 
           <div style={styles.footer}>
-            <button 
-              type="button" 
-              style={styles.cancelBtn} 
+            <button
+              type="button"
+              style={styles.cancelBtn}
               onClick={() => navigate('/help-request')}
             >
               Cancel
             </button>
-            <button 
-              type="submit" 
-              style={styles.submitBtn} 
+            <button
+              type="submit"
+              style={styles.submitBtn}
               disabled={submitting}
             >
               {submitting ? 'Updating...' : 'Save Changes'}
