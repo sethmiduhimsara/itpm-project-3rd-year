@@ -12,6 +12,7 @@ import EditHelpRequest from './pages/helprequest/EditHelpRequest'
 import AcceptedRequests from './pages/helprequest/AcceptedRequests'
 import ChatSession from './pages/helprequest/ChatSession'
 import HelpRequestDashboard from './pages/helprequest/HelpRequestDashboard'
+import AdminHelpRequests from './pages/admin/AdminHelpRequests'
 import ProgressTabs from './pages/progress/ProgressTabs'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -57,6 +58,7 @@ function App() {
                 {/* Admin-only route */}
                 <Route element={<AdminRoute />}>
                   <Route path="/admin/discussion" element={<AdminDiscussion />} />
+                  <Route path="/admin/help-requests" element={<AdminHelpRequests />} />
                 </Route>
               </Route>
 
