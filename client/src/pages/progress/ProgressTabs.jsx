@@ -28,6 +28,8 @@ const ProgressTabs = () => {
     else setActiveTab('Dashboard')
   }, [searchParams])
 
+  const searchTerm = searchParams.get('search') || ''
+
   return (
     <div style={styles.wrapper}>
       {/* Horizontal Tabs */}
@@ -49,7 +51,9 @@ const ProgressTabs = () => {
       {/* Tab Content */}
       <div style={styles.content}>
         {activeTab === 'Dashboard' && <Dashboard />}
-        {activeTab === 'Activity History' && <History activities={activities} />}
+        {activeTab === 'Activity History' && (
+          <History activities={activities} searchTerm={searchTerm} />
+        )}
         {/* {activeTab === 'Badges' && <Badges activities={activities} />} */}
         {activeTab === 'Progress' && <Progress activities={activities} />}
       </div>

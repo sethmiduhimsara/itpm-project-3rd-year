@@ -61,7 +61,7 @@ const TODAY_DATE      = 22
 const ACTIVE_DAYS = new Set([3,5,7,8,10,12,14,15,17,18,19,20,21,22])
 
 // ── Component ─────────────────────────────────────────────────
-const History = ({ activities = [] }) => {
+const History = ({ activities = [], searchTerm = '' }) => {
   const [activeFilter, setActiveFilter] = useState('all')
   const [search,       setSearch]       = useState('')
   const [selectedDay,  setSelectedDay]  = useState(new Date().getDate())
@@ -74,6 +74,10 @@ const History = ({ activities = [] }) => {
     const t = setTimeout(() => setCatFills(CATEGORIES.map(c => c.pct)), 400)
     return () => clearTimeout(t)
   }, [])
+
+  useEffect(() => {
+    if (searchTerm) setSearch(searchTerm)
+  }, [searchTerm])
 
   // Calculate stats from activities
   const STATS = useMemo(() => {

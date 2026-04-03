@@ -170,6 +170,7 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
+
   const navLinks = useMemo(() => {
     if (isAdmin) {
       return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
