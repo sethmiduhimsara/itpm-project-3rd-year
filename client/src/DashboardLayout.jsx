@@ -173,7 +173,10 @@ function DashboardLayout() {
 
   const navLinks = useMemo(() => {
     if (isAdmin) {
-      return [{ to: "/admin/discussion", label: "Admin Panel", icon: Shield }];
+      return [
+        { to: "/admin/discussion", label: "Admin Panel", icon: Shield },
+        { to: "/admin/help-requests", label: "Help Requests", icon: HelpCircle }
+      ];
     }
     return [
       { to: "/resources", label: "Resources", icon: BookOpen },
