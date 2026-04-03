@@ -21,6 +21,9 @@ import { useAuth } from "./contexts/AuthContext";
 function getPageTitle(pathname) {
   if (pathname.startsWith("/admin")) return "Admin Dashboard";
   if (pathname.startsWith("/discussion")) return "Student Discussion";
+  if (pathname === "/resources/dashboard") return "Resources Dashboard";
+  if (pathname === "/resources/upload") return "Upload Resource";
+  if (pathname === "/resources/browse") return "Browse Resources";
   if (pathname.startsWith("/resources")) return "Resource Sharing";
   if (pathname.startsWith("/help-request/dashboard")) return "Help Dashboard";
   if (pathname.startsWith("/help-request/new")) return "Post Help Request";
@@ -150,6 +153,10 @@ function DashboardLayout() {
       setActiveDropdown("Discussion");
       return;
     }
+    if (pathname.startsWith("/resources")) {
+      setActiveDropdown("Resources");
+      return;
+    }
     if (pathname.startsWith("/progress")) {
       setActiveDropdown("My Progress");
     }
@@ -178,10 +185,14 @@ function DashboardLayout() {
         { to: "/admin/help-requests", label: "Help Requests", icon: HelpCircle }
       ];
     }
-    return [
-      { to: "/resources", label: "Resources", icon: BookOpen },
-    ];
+    return [];
   }, [isAdmin]);
+
+  const resourcesDropdownItems = [
+    { to: '/resources/dashboard', label: 'Dashboard' },
+    { to: '/resources/browse',    label: 'Browse Resources' },
+    { to: '/resources/upload',    label: 'Upload Resource', kind: 'action' },
+  ];
 
   const discussionDropdownItems = [
     { to: "/discussion?view=feed", label: "Feed" },
@@ -225,6 +236,20 @@ function DashboardLayout() {
               icon={MessagesSquare}
               active={pathname.startsWith("/discussion")}
               items={discussionDropdownItems}
+              activeDropdown={activeDropdown}
+              onToggle={setActiveDropdown}
+              onNavigate={() => setSidebarOpen(false)}
+              isSubItemActive={isSubItemActive}
+            />
+          )}
+
+          {/* Resources dropdown - only for students */}
+          {!isAdmin && (
+            <DropdownLink
+              label="Resources"
+              icon={BookOpen}
+              active={pathname.startsWith("/resources")}
+              items={resourcesDropdownItems}
               activeDropdown={activeDropdown}
               onToggle={setActiveDropdown}
               onNavigate={() => setSidebarOpen(false)}

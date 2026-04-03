@@ -5,7 +5,9 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import DashboardLayout from './DashboardLayout'
 import StudentDiscussion from './pages/discussion/StudentDiscussion'
 import AdminDiscussion from './pages/discussion/AdminDiscussion'
-import ResourceSharing from './pages/resources/ResourceSharing'
+import ResourceDashboard from './pages/resources/ResourceDashboard'
+import ResourceUpload from './pages/resources/ResourceUpload'
+import ResourceBrowse from './pages/resources/ResourceBrowse'
 import HelpRequest from './pages/helprequest/HelpRequest'
 import PostHelpRequest from './pages/helprequest/PostHelpRequest'
 import EditHelpRequest from './pages/helprequest/EditHelpRequest'
@@ -46,7 +48,10 @@ function App() {
               <Route element={<PrivateRoute />}>
                 <Route path="/" element={<Navigate to="/discussion" replace />} />
                 <Route path="/discussion" element={<StudentDiscussion />} />
-                <Route path="/resources" element={<ResourceSharing />} />
+                <Route path="/resources" element={<Navigate to="/resources/dashboard" replace />} />
+                <Route path="/resources/dashboard" element={<ResourceDashboard />} />
+                <Route path="/resources/upload" element={<ResourceUpload />} />
+                <Route path="/resources/browse" element={<ResourceBrowse />} />
                 <Route path="/help-request" element={<HelpRequest />} />
                 <Route path="/help-request/new" element={<PostHelpRequest />} />
                 <Route path="/help-request/edit/:id" element={<EditHelpRequest />} />
