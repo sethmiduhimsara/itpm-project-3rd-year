@@ -35,9 +35,21 @@ async function maybeBlock(resource) {
 
 // ── GET /api/resources  — list, filter, search, sort, paginate ───────────────
 exports.getResources = async (req, res) => {
+  console.log('getResources called', { user: req.user?.email, query: req.query })
   try {
-    const { subject, semester, search, sort, page = 1, limit = 20 } = req.query
-    const filter = { blocked: false }
+    const { subject, semester, search, sort, page = 1, limit = 20, mine, reported } = req.query
+    const filter = {}
+
+    // ?mine=true  → only this user's uploads (any blocked status)
+    // ?reported=true → only this user's reported/blocked uploads
+    if (mine && mine !== 'false') {
+      filter.uploaderId = req.user._id
+    } else if (reported && reported !== 'false') {
+      filter.uploaderId = req.user._id
+      filter['reports.0'] = { $exists: true }
+    } else {
+      filter.blocked = false
+    }
 
     if (subject  && subject  !== 'All') filter.subject  = subject
     if (semester && semester !== 'All') filter.semester = semester
@@ -76,6 +88,19 @@ exports.getResources = async (req, res) => {
 // ── POST /api/resources  — upload new resource ────────────────────────────────
 exports.createResource = async (req, res) => {
   try {
+    const title = (req.body.title || '').trim()
+    const keywords = (req.body.keywords || '').trim()
+    const titlePattern = /^[A-Za-z0-9\s\-_,.]{3,100}$/
+    const keywordsPattern = /^[A-Za-z0-9\s,]*$/
+
+    if (!title) return res.status(400).json({ message: 'Resource title is required.' })
+    if (!titlePattern.test(title)) {
+      return res.status(400).json({ message: 'Title must be 3-100 chars and only letters, numbers, spaces, - _ , . allowed.' })
+    }
+    if (keywords && !keywordsPattern.test(keywords)) {
+      return res.status(400).json({ message: 'Keywords may only include letters, numbers, spaces, and commas.' })
+    }
+
     const data = {
       ...req.body,
       uploaderId: req.user._id,
@@ -134,6 +159,32 @@ exports.reportResource = async (req, res) => {
     res.json(resource)
   } catch (err) {
     res.status(400).json({ message: err.message })
+  }
+}
+
+// ── GET /api/resources/my-count  — count of resources uploaded by current user ─
+exports.getMyCount = async (req, res) => {
+  try {
+    console.log('getMyCount called for user', req.user?._id)
+    const count = await Resource.countDocuments({ uploaderId: req.user._id })
+    res.json({ count })
+  } catch (err) {
+    console.error('getMyCount error', err)
+    res.status(500).json({ message: 'Server error', detail: err.message })
+  }
+}
+
+// ── GET /api/resources/my-reported  — uploader's own reported resources ──────
+exports.getMyReported = async (req, res) => {
+  try {
+    const resources = await Resource.find({
+      uploaderId: req.user._id,
+      'reports.0': { $exists: true },   // array has at least one entry
+    }).sort({ createdAt: -1 })
+
+    res.json(resources)
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', detail: err.message })
   }
 }
 

@@ -1,16 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useActivities } from '../../contexts/ActivityContext'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import api from '../../api'
+import { SUBJECTS, SEMESTERS, FILE_BASE } from './resourceConstants'
 
-const SUBJECTS  = ['All', 'Mathematics', 'Software Engineering', 'Database', 'Networks', 'ITPM', 'Other']
-const SEMESTERS = ['All', 'Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6']
-const FILE_TYPES = ['PDF', 'Link', 'Notes']
-const FILE_BASE  = 'http://localhost:5000'
-
-// ── Report Modal ─────────────────────────────────────────────────────────────
+// ── Report Modal ──────────────────────────────────────────────────────────────
 function ReportModal({ resource, onClose, onSubmit }) {
-  const [reason, setReason] = useState('')
+  const [reason,     setReason]     = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   const submit = async () => {
@@ -23,9 +19,7 @@ function ReportModal({ resource, onClose, onSubmit }) {
   return (
     <div onClick={onClose} style={styles.modalOverlay}>
       <div onClick={e => e.stopPropagation()} style={styles.modalBox}>
-        <h3 style={{ color: 'var(--text)', marginBottom: 6, fontSize: 16 }}>
-          Report Resource
-        </h3>
+        <h3 style={{ color: 'var(--text)', marginBottom: 6, fontSize: 16 }}>Report Resource</h3>
         <p style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 12 }}>
           <strong style={{ color: 'var(--text)' }}>{resource.title}</strong>
         </p>
@@ -48,8 +42,68 @@ function ReportModal({ resource, onClose, onSubmit }) {
   )
 }
 
+// ── Report Detail Modal (for uploader to read their reports) ─────────────────
+function ReportDetailModal({ resource, onClose }) {
+  const count = resource.reports?.length ?? 0
+  return (
+    <div onClick={onClose} style={styles.modalOverlay}>
+      <div onClick={e => e.stopPropagation()} style={styles.modalBox}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <div>
+            <div style={{ fontWeight: 900, color: 'var(--text)', fontSize: 15, marginBottom: 4 }}>
+              {resource.title}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--muted2)' }}>
+              {resource.subject} • {resource.type}
+            </div>
+          </div>
+          <button
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid var(--panel-border)', borderRadius: 8, color: 'var(--muted)', cursor: 'pointer', padding: '4px 10px', fontSize: 14, fontWeight: 700 }}
+            onClick={onClose}
+          >✕</button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, paddingBottom: 12, borderBottom: '1px solid var(--panel-border)' }}>
+          {resource.blocked
+            ? <span style={{ ...styles.reportedBadge, color: 'var(--danger)', backgroundColor: 'rgba(251,113,133,0.14)', borderColor: 'rgba(251,113,133,0.35)' }}>🚫 Blocked</span>
+            : <span style={styles.reportedBadge}>⚠ Reported</span>
+          }
+          <span style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700 }}>
+            {count} report{count !== 1 ? 's' : ''} received
+          </span>
+        </div>
+
+        {count === 0 ? (
+          <div style={{ color: 'var(--muted2)', fontSize: 13, padding: '12px 0' }}>No reports on record.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: '50vh', overflowY: 'auto' }}>
+            {resource.reports.map((rep, i) => (
+              <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+                <span style={{ fontSize: 11, color: 'var(--muted2)', backgroundColor: 'rgba(255,255,255,0.09)', borderRadius: 999, width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 800 }}>
+                  {i + 1}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+                    {rep.reason?.trim()
+                      ? rep.reason.trim()
+                      : <em style={{ color: 'var(--muted2)' }}>No reason provided</em>
+                    }
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 2 }}>
+                    {new Date(rep.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Resource Card ─────────────────────────────────────────────────────────────
-function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNotes, onDownloadNotes }) {
+function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNotes, onDownloadNotes, onViewReports }) {
   const isOwner   = user && (r.uploaderId === user._id || r.uploaderId?._id === user._id)
   const isAdmin   = user?.role === 'admin'
   const canDelete = isOwner || isAdmin
@@ -69,9 +123,11 @@ function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNo
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <span style={styles.typeBadge}>{r.type}</span>
           {r.reported && (
-            <span style={styles.reportedBadge}>
-              ⚠ Reported ({reportCount})
-            </span>
+            isOwner
+              ? <button style={{ ...styles.reportedBadge, cursor: 'pointer', background: 'none', border: '1px solid rgba(251,191,36,0.35)' }} onClick={() => onViewReports(r)}>
+                  ⚠ Reported ({reportCount}) — View
+                </button>
+              : <span style={styles.reportedBadge}>⚠ Reported ({reportCount})</span>
           )}
         </div>
         <span style={styles.resourceMeta}>{r.subject} • {r.semester}</span>
@@ -79,9 +135,7 @@ function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNo
 
       <h3 style={styles.resourceTitle}>{r.title}</h3>
       {r.keywords && (
-        <p style={{ ...styles.resourceMeta2, fontStyle: 'italic' }}>
-          Keywords: {r.keywords}
-        </p>
+        <p style={{ ...styles.resourceMeta2, fontStyle: 'italic' }}>Keywords: {r.keywords}</p>
       )}
       <p style={styles.resourceMeta2}>
         Uploaded by <strong style={{ color: 'var(--text)' }}>{r.uploader}</strong>
@@ -129,14 +183,16 @@ function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNo
           </>
         )}
 
-        {/* Report button — hide if already reported by this user */}
-        {!hasReported ? (
+        {isOwner && reportCount > 0 ? (
+          <button style={styles.reportBtn} onClick={() => onViewReports(r)}>
+            ⚠ View Reports ({reportCount})
+          </button>
+        ) : !hasReported ? (
           <button style={styles.reportBtn} onClick={() => onReport(r)}>⚑ Report</button>
         ) : (
           <span style={{ ...styles.reportedBadge, cursor: 'default' }}>Reported</span>
         )}
 
-        {/* Delete — owner or admin only */}
         {canDelete && (
           <button style={styles.removeBtn} onClick={() => onRemove(r._id)}>🗑 Delete</button>
         )}
@@ -146,29 +202,28 @@ function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNo
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-function ResourceSharing() {
-  const { addActivity } = useActivities()
-  const { user }        = useAuth()
+function ResourceBrowse() {
+  const { user } = useAuth()
+  const [searchParams] = useSearchParams()
 
-  const [resources,       setResources]       = useState([])
-  const [total,           setTotal]           = useState(0)
-  const [page,            setPage]            = useState(1)
-  const [pages,           setPages]           = useState(1)
-  const [loading,         setLoading]         = useState(true)
-  const [form,            setForm]            = useState({
-    title: '', subject: 'Mathematics', semester: 'Semester 1',
-    type: 'PDF', url: '', file: null, notesText: '', keywords: '',
-  })
-  const [errors,          setErrors]          = useState({})
-  const [filterSubject,   setFilterSubject]   = useState('All')
-  const [filterSemester,  setFilterSemester]  = useState('All')
-  const [sortBy,          setSortBy]          = useState('newest')
-  const [search,          setSearch]          = useState('')
-  const [searchInput,     setSearchInput]     = useState('')
-  const [showForm,        setShowForm]        = useState(false)
-  const [successMsg,      setSuccessMsg]      = useState('')
-  const [notesModal,      setNotesModal]      = useState(null)
-  const [reportTarget,    setReportTarget]    = useState(null)
+  // Pre-fill subject filter if coming from dashboard shortcut (?subject=...)
+  const urlSubject = searchParams.get('subject')
+  const initialSubject = SUBJECTS.includes(urlSubject) ? urlSubject : 'All'
+
+  const [resources,      setResources]      = useState([])
+  const [total,          setTotal]          = useState(0)
+  const [page,           setPage]           = useState(1)
+  const [pages,          setPages]          = useState(1)
+  const [loading,        setLoading]        = useState(true)
+  const [filterSubject,  setFilterSubject]  = useState(initialSubject)
+  const [filterSemester, setFilterSemester] = useState('All')
+  const [sortBy,         setSortBy]         = useState('newest')
+  const [search,         setSearch]         = useState('')
+  const [searchInput,    setSearchInput]    = useState('')
+  const [successMsg,     setSuccessMsg]     = useState('')
+  const [notesModal,     setNotesModal]     = useState(null)
+  const [reportTarget,   setReportTarget]   = useState(null)
+  const [reportsModal,   setReportsModal]   = useState(null)
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   const fetchResources = useCallback(async () => {
@@ -198,75 +253,6 @@ function ResourceSharing() {
   // Reset to page 1 when filters change
   useEffect(() => { setPage(1) }, [filterSubject, filterSemester, search, sortBy])
 
-  // ── Validation ─────────────────────────────────────────────────────────────
-  const validate = () => {
-    const e = {}
-    const title = form.title.trim()
-    const keywords = form.keywords.trim()
-    const acceptableTitle = /^[A-Za-z0-9\s\-_,.]+$/
-    const acceptableKeywords = /^[A-Za-z0-9\s,]*$/
-
-    const sanitizedTitle = title.replace(/[^A-Za-z0-9\s\-_,.]/g, '')
-    const sanitizedKeywords = keywords.replace(/[^A-Za-z0-9\s,]/g, '')
-
-    if (!title) e.title = 'Resource title is required.'
-    else if (title.length < 3) e.title = 'Title must be at least 3 characters.'
-    else if (title.length > 100) e.title = 'Title must be under 100 characters.'
-    else if (!acceptableTitle.test(title)) e.title = 'Title cannot contain special characters.'
-    else if (sanitizedTitle !== title) e.title = 'Title contains invalid characters. Only letters, numbers, space, - _ , . allowed.'
-
-    if (keywords && !acceptableKeywords.test(keywords)) {
-      e.keywords = 'Keywords may only include letters, numbers, spaces, commas.'
-    }
-    if (sanitizedKeywords !== keywords && !e.keywords) {
-      e.keywords = 'Keywords contain invalid characters.'
-    }
-
-    if (keywords && !acceptableKeywords.test(keywords)) {
-      e.keywords = 'Keywords may only include letters, numbers, spaces, commas.'
-    }
-
-    if (form.type === 'Link') {
-      if (!form.url.trim())               e.url = 'URL is required for Link type.'
-      else if (!/^https?:\/\/.+/.test(form.url.trim())) e.url = 'Enter a valid URL starting with http(s)://'
-    }
-    if (form.type === 'PDF' && !form.file) e.file = 'PDF file is required.'
-    if (form.type === 'Notes') {
-      if (!form.notesText.trim())          e.notesText = 'Notes content is required.'
-      else if (form.notesText.trim().length < 20) e.notesText = 'Notes must be at least 20 characters.'
-    }
-    return e
-  }
-
-  // ── Submit upload ──────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    const foundErrors = validate()
-    if (Object.keys(foundErrors).length > 0) { setErrors(foundErrors); return }
-
-    try {
-      const fd = new FormData()
-      fd.append('title',    form.title.trim())
-      fd.append('subject',  form.subject)
-      fd.append('semester', form.semester)
-      fd.append('type',     form.type)
-      fd.append('keywords', form.keywords.trim())
-      if (form.type === 'Link')  fd.append('url', form.url.trim())
-      if (form.type === 'PDF' && form.file) fd.append('file', form.file)
-      if (form.type === 'Notes') fd.append('notesText', form.notesText.trim())
-
-      const res = await api.post('/resources', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setResources(prev => [res.data, ...prev])
-      setForm({ title: '', subject: 'Mathematics', semester: 'Semester 1', type: 'PDF', url: '', file: null, notesText: '', keywords: '' })
-      setErrors({})
-      setShowForm(false)
-      setSuccessMsg('Resource uploaded successfully! 🎉')
-      setTimeout(() => setSuccessMsg(''), 4000)
-      addActivity({ type: 'Resource', description: `Uploaded: ${res.data.title}` })
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to upload resource')
-    }
-  }
-
   // ── Like / Dislike ─────────────────────────────────────────────────────────
   const handleLike = async (id) => {
     try {
@@ -283,15 +269,12 @@ function ResourceSharing() {
   }
 
   // ── Report ─────────────────────────────────────────────────────────────────
-  const handleReport = (resource) => setReportTarget(resource)
-
   const submitReport = async (id, reason) => {
     try {
       const res = await api.patch(`/resources/${id}/report`, { reason })
       setResources(prev => prev.map(r => r._id === id ? res.data : r))
       setSuccessMsg('Resource reported. Thank you for keeping the platform safe.')
       setTimeout(() => setSuccessMsg(''), 4000)
-      // Remove from list if now blocked
       if (res.data.blocked) {
         setResources(prev => prev.filter(r => r._id !== id))
       }
@@ -330,8 +313,8 @@ function ResourceSharing() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        <h1 style={styles.heading}>Resource Sharing</h1>
-        <p style={styles.subheading}>Upload and discover study materials shared by your peers.</p>
+        <h1 style={styles.heading}>Browse Resources</h1>
+        <p style={styles.subheading}>Search and filter study materials shared by your peers.</p>
 
         {successMsg && <div style={styles.success}>{successMsg}</div>}
 
@@ -357,20 +340,20 @@ function ResourceSharing() {
           <div>
             <label style={styles.label}>Subject</label>
             <div style={styles.filterRow}>
-              {SUBJECTS.map(s => (
-                <button key={s}
-                  style={{ ...styles.filterBtn, ...(filterSubject === s ? styles.filterActive : {}) }}
-                  onClick={() => setFilterSubject(s)}>{s}</button>
+              {SUBJECTS.map(subj => (
+                <button key={subj}
+                  style={{ ...styles.filterBtn, ...(filterSubject === subj ? styles.filterActive : {}) }}
+                  onClick={() => setFilterSubject(subj)}>{subj}</button>
               ))}
             </div>
           </div>
           <div>
             <label style={styles.label}>Semester</label>
             <div style={styles.filterRow}>
-              {SEMESTERS.map(s => (
-                <button key={s}
-                  style={{ ...styles.filterBtn, ...(filterSemester === s ? styles.filterActive : {}) }}
-                  onClick={() => setFilterSemester(s)}>{s}</button>
+              {SEMESTERS.map(sem => (
+                <button key={sem}
+                  style={{ ...styles.filterBtn, ...(filterSemester === sem ? styles.filterActive : {}) }}
+                  onClick={() => setFilterSemester(sem)}>{sem}</button>
               ))}
             </div>
           </div>
@@ -383,93 +366,10 @@ function ResourceSharing() {
           </div>
         </div>
 
-        {/* ── Upload toggle ── */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-          <button style={styles.newBtn} onClick={() => setShowForm(!showForm)}>
-            {showForm ? '✕ Cancel' : '＋ Upload Resource'}
-          </button>
-          {total > 0 && (
+        {/* ── Count badge ── */}
+        {total > 0 && (
+          <div style={{ marginBottom: 16 }}>
             <span style={styles.totalBadge}>{total} resource{total !== 1 ? 's' : ''}</span>
-          )}
-        </div>
-
-        {/* ── Upload Form ── */}
-        {showForm && (
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Upload New Resource</h3>
-
-            <label style={styles.label}>Resource Title *</label>
-            <input style={{ ...styles.input, ...(errors.title ? styles.inputError : {}) }}
-              placeholder="e.g. Database ERD Notes" value={form.title}
-              onKeyDown={e => {
-                const allowedControlKeys = ['Backspace','Tab','ArrowLeft','ArrowRight','Delete','Home','End']
-                if (allowedControlKeys.includes(e.key) || (e.ctrlKey || e.metaKey)) return
-                if (!/^[A-Za-z0-9\s\-_,\.]$/.test(e.key)) e.preventDefault()
-              }}
-              onChange={e => setForm({ ...form, title: e.target.value.replace(/[^A-Za-z0-9\s\-_,.]/g, '') })} />
-            {errors.title && <span style={styles.error}>{errors.title}</span>}
-
-            <label style={styles.label}>Keywords (optional)</label>
-            <input style={{ ...styles.input, ...(errors.keywords ? styles.inputError : {}) }}
-              placeholder="e.g. normalization, ER diagram, SQL"
-              value={form.keywords}
-              onKeyDown={e => {
-                const allowedControlKeys = ['Backspace','Tab','ArrowLeft','ArrowRight','Delete','Home','End']
-                if (allowedControlKeys.includes(e.key) || (e.ctrlKey || e.metaKey)) return
-                if (!/^[A-Za-z0-9\s,]$/.test(e.key)) e.preventDefault()
-              }}
-              onChange={e => setForm({ ...form, keywords: e.target.value.replace(/[^A-Za-z0-9\s,]/g, '') })} />
-            {errors.keywords && <span style={styles.error}>{errors.keywords}</span>}
-
-            <div style={styles.row}>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Subject *</label>
-                <select style={styles.input} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}>
-                  {SUBJECTS.filter(s => s !== 'All').map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Semester *</label>
-                <select style={styles.input} value={form.semester} onChange={e => setForm({ ...form, semester: e.target.value })}>
-                  {SEMESTERS.filter(s => s !== 'All').map(s => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={styles.label}>Type *</label>
-                <select style={styles.input} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                  {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {form.type === 'Link' && (
-              <>
-                <label style={styles.label}>URL *</label>
-                <input style={{ ...styles.input, ...(errors.url ? styles.inputError : {}) }}
-                  placeholder="https://example.com" value={form.url}
-                  onChange={e => setForm({ ...form, url: e.target.value })} />
-                {errors.url && <span style={styles.error}>{errors.url}</span>}
-              </>
-            )}
-            {form.type === 'PDF' && (
-              <>
-                <label style={styles.label}>Upload PDF *</label>
-                <input style={styles.input} type="file" accept="application/pdf"
-                  onChange={e => setForm({ ...form, file: e.target.files?.[0] || null })} />
-                {errors.file && <span style={styles.error}>{errors.file}</span>}
-              </>
-            )}
-            {form.type === 'Notes' && (
-              <>
-                <label style={styles.label}>Notes content *</label>
-                <textarea style={{ ...styles.textarea, ...(errors.notesText ? styles.inputError : {}) }}
-                  placeholder="Paste your lecture notes..." rows={5}
-                  value={form.notesText} onChange={e => setForm({ ...form, notesText: e.target.value })} />
-                {errors.notesText && <span style={styles.error}>{errors.notesText}</span>}
-              </>
-            )}
-
-            <button style={styles.submitBtn} onClick={handleSubmit}>Upload Resource</button>
           </div>
         )}
 
@@ -478,7 +378,9 @@ function ResourceSharing() {
           <div style={styles.emptyState}>Loading resources…</div>
         ) : resources.length === 0 ? (
           <div style={styles.emptyState}>
-            {search ? `No results for "${search}". Try different keywords.` : 'No resources found. Be the first to upload!'}
+            {search
+              ? `No results for "${search}". Try different keywords.`
+              : 'No resources found for the selected filters.'}
           </div>
         ) : (
           <>
@@ -489,10 +391,11 @@ function ResourceSharing() {
                 user={user}
                 onLike={handleLike}
                 onDislike={handleDislike}
-                onReport={handleReport}
+                onReport={res => setReportTarget(res)}
                 onRemove={handleRemove}
                 onViewNotes={res => setNotesModal({ title: res.title, content: res.notesText || '' })}
                 onDownloadNotes={downloadNotes}
+                onViewReports={res => setReportsModal(res)}
               />
             ))}
 
@@ -525,12 +428,20 @@ function ResourceSharing() {
           </div>
         )}
 
-        {/* ── Report Modal ── */}
+        {/* ── Report Modal (submit a report) ── */}
         {reportTarget && (
           <ReportModal
             resource={reportTarget}
             onClose={() => setReportTarget(null)}
             onSubmit={submitReport}
+          />
+        )}
+
+        {/* ── Report Detail Modal (uploader views their reports) ── */}
+        {reportsModal && (
+          <ReportDetailModal
+            resource={reportsModal}
+            onClose={() => setReportsModal(null)}
           />
         )}
       </div>
@@ -558,19 +469,11 @@ const styles = {
   filterBtn:          { padding: '5px 12px', borderRadius: '20px', border: '1px solid var(--panel-border)', backgroundColor: 'rgba(255,255,255,0.04)', cursor: 'pointer', fontSize: '12px', color: 'var(--muted)' },
   filterActive:       { backgroundColor: 'rgba(var(--accent-rgb),0.20)', color: 'var(--text)', border: '1px solid rgba(var(--accent2-rgb),0.45)' },
 
-  newBtn:             { backgroundColor: 'var(--accent)', color: 'var(--bg)', border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '14px', boxShadow: '0 10px 30px rgba(var(--accent-rgb),0.25)' },
-  totalBadge:         { alignSelf: 'center', padding: '5px 12px', borderRadius: '20px', backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--muted)', fontSize: '13px', border: '1px solid var(--panel-border)' },
+  totalBadge:         { padding: '5px 12px', borderRadius: '20px', backgroundColor: 'rgba(255,255,255,0.06)', color: 'var(--muted)', fontSize: '13px', border: '1px solid var(--panel-border)' },
 
-  // Form
-  card:               { backgroundColor: 'var(--panel)', borderRadius: '14px', padding: '24px', marginBottom: '24px', boxShadow: '0 18px 45px rgba(0,0,0,0.25)', border: '1px solid var(--panel-border)' },
-  cardTitle:          { marginBottom: '16px', color: 'var(--text)', fontSize: '18px' },
+  // Form helpers (used in ReportModal)
   label:              { display: 'block', marginBottom: '5px', fontWeight: '700', fontSize: '13px', color: 'var(--muted)', marginTop: '8px' },
-  input:              { width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid var(--panel-border)', marginBottom: '4px', fontSize: '14px', boxSizing: 'border-box', backgroundColor: 'rgba(255,255,255,0.04)', color: 'var(--text)' },
   textarea:           { width: '100%', padding: '9px 12px', borderRadius: '10px', border: '1.5px solid var(--panel-border)', marginBottom: '4px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', backgroundColor: 'rgba(255,255,255,0.04)', color: 'var(--text)' },
-  inputError:         { border: '1.5px solid rgba(251,113,133,0.85)' },
-  error:              { color: 'var(--danger)', fontSize: '12px', display: 'block', marginBottom: '8px', fontWeight: '600' },
-  row:                { display: 'flex', gap: '12px', flexWrap: 'wrap' },
-  submitBtn:          { backgroundColor: 'var(--accent)', color: 'var(--bg)', border: 'none', padding: '11px 22px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', marginTop: '10px' },
 
   // Resource card
   resourceCard:       { backgroundColor: 'var(--panel)', borderRadius: '14px', padding: '18px', marginBottom: '14px', boxShadow: '0 18px 45px rgba(0,0,0,0.18)', border: '1px solid var(--panel-border)' },
@@ -609,4 +512,4 @@ const styles = {
   notesContent:       { whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, color: 'var(--text)', lineHeight: 1.5, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 12, maxHeight: '60vh', overflow: 'auto' },
 }
 
-export default ResourceSharing
+export default ResourceBrowse
