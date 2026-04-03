@@ -9,24 +9,33 @@ function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!form.name || !form.email || !form.password || !form.confirmPassword)
+    const name = form.name.trim()
+    const email = form.email.trim()
+    if (!name || !email || !form.password || !form.confirmPassword)
       { setError('All fields are required.'); return }
-    if (form.name.trim().length < 2)
+    if (name.length < 2)
       { setError('Name must be at least 2 characters.'); return }
+    if (!/^[A-Za-z][A-Za-z\s'.-]*$/.test(name))
+      { setError('Name can only contain letters, spaces, apostrophes, hyphens, and periods.'); return }
+    if (!emailPattern.test(email))
+      { setError('Enter a valid email address.'); return }
     if (form.password.length < 6)
       { setError('Password must be at least 6 characters.'); return }
+    if (/\s/.test(form.password))
+      { setError('Password cannot contain spaces.'); return }
     if (form.password !== form.confirmPassword)
       { setError('Passwords do not match.'); return }
 
     setLoading(true)
     try {
       const res = await api.post('/auth/register', {
-        name: form.name.trim(),
-        email: form.email.trim(),
+        name,
+        email,
         password: form.password,
       })
       login(res.data.user, res.data.token)

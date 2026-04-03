@@ -9,14 +9,19 @@ function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    if (!form.email || !form.password) { setError('All fields are required.'); return }
+    const email = form.email.trim()
+    if (!email || !form.password) { setError('All fields are required.'); return }
+    if (!emailPattern.test(email)) { setError('Enter a valid email address.'); return }
+    if (form.password.length < 6) { setError('Password must be at least 6 characters.'); return }
+    if (/\s/.test(form.password)) { setError('Password cannot contain spaces.'); return }
     setLoading(true)
     try {
-      const res = await api.post('/auth/login', form)
+      const res = await api.post('/auth/login', { email, password: form.password })
       login(res.data.user, res.data.token)
       navigate(res.data.user.role === 'admin' ? '/admin/discussion' : '/discussion', { replace: true })
     } catch (err) {
