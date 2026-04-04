@@ -275,7 +275,7 @@ const Dashboard = () => {
           </div>
           <div className="streak-footer">
             <span>60 days ago</span>
-            <span>Today</span>
+            <span>Today.</span>
           </div>
         </div>
 
