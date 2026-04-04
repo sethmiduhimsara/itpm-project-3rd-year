@@ -202,6 +202,7 @@ function DashboardLayout() {
   ];
 
   const discussionDropdownItems = [
+    { to: "/discussion?view=dashboard", label: "Dashboard" },
     { to: "/discussion?view=feed", label: "Feed" },
     { to: "/discussion?view=thread", label: "Thread View" },
     { to: "/discussion?view=mine", label: "My Posts" },
