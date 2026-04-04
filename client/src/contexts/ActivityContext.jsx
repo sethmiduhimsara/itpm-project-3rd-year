@@ -26,7 +26,10 @@ export function ActivityProvider({ children }) {
 
       const posts = Array.isArray(postsRes.data) ? postsRes.data : []
       const helpRequests = Array.isArray(helpRes.data) ? helpRes.data : []
-      const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data : []
+      const resourcesPayload = resourcesRes.data
+      const resources = Array.isArray(resourcesPayload)
+        ? resourcesPayload
+        : (resourcesPayload?.resources || [])
 
       const postActivities = posts.map((p) => ({
         _id: `post:${p._id}`,
