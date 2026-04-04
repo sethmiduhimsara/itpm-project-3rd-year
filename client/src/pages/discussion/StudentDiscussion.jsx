@@ -122,7 +122,8 @@ function StudentDiscussion() {
 
   const activeView = useMemo(() => {
     const view = (searchParams.get("view") || "feed").toLowerCase();
-    if (["feed", "thread", "mine", "create"].includes(view)) return view;
+    if (["dashboard", "feed", "thread", "mine", "create"].includes(view))
+      return view;
     return "feed";
   }, [searchParams]);
 
@@ -561,9 +562,137 @@ function StudentDiscussion() {
 
   const visiblePosts = activeView === "mine" ? myPosts : searchedPosts;
 
+  const dashboardMetrics = useMemo(() => {
+    const safePosts = Array.isArray(searchedPosts) ? searchedPosts : [];
+    const totalPosts = safePosts.length;
+    const openPosts = safePosts.filter(
+      (p) => (p.discussionStatus || "Open") !== "Resolved",
+    ).length;
+    const resolvedPosts = safePosts.filter(
+      (p) => p.discussionStatus === "Resolved",
+    ).length;
+    const totalReplies = safePosts.reduce(
+      (sum, p) => sum + (Array.isArray(p.replies) ? p.replies.length : 0),
+      0,
+    );
+    const myPostCount = safePosts.filter((p) => p.author === user?.name).length;
+    const myReplyCount = safePosts.reduce((sum, p) => {
+      const replies = Array.isArray(p.replies) ? p.replies : [];
+      return (
+        sum + replies.filter((reply) => reply?.author === user?.name).length
+      );
+    }, 0);
+
+    const categoryCounts = safePosts.reduce((acc, p) => {
+      const key = p.category || "General";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const topCategory =
+      Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "N/A";
+
+    const today = new Date();
+    const activityByDay = Array.from({ length: 7 }).map((_, idx) => {
+      const dayDate = new Date(today);
+      dayDate.setHours(0, 0, 0, 0);
+      dayDate.setDate(today.getDate() - (6 - idx));
+
+      const dayLabel = dayDate.toLocaleDateString(undefined, {
+        weekday: "short",
+      });
+      const dateLabel = dayDate.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      });
+      const dayValue = safePosts.filter((post) => {
+        const created = new Date(post.createdAt);
+        created.setHours(0, 0, 0, 0);
+        return created.getTime() === dayDate.getTime();
+      }).length;
+
+      return { label: dayLabel, dateLabel, value: dayValue };
+    });
+
+    const weekTotal = activityByDay.reduce((sum, day) => sum + day.value, 0);
+    const peakValue = activityByDay.reduce(
+      (max, day) => (day.value > max ? day.value : max),
+      0,
+    );
+    const peakDay =
+      activityByDay.find((day) => day.value === peakValue && peakValue > 0) ||
+      null;
+
+    return {
+      totalPosts,
+      openPosts,
+      resolvedPosts,
+      totalReplies,
+      myContributions: myPostCount + myReplyCount,
+      topCategory,
+      activityByDay,
+      activityWeekTotal: weekTotal,
+      activityPeakValue: peakValue,
+      activityPeakDayLabel: peakDay
+        ? `${peakDay.label} (${peakDay.dateLabel})`
+        : "No activity yet",
+    };
+  }, [searchedPosts, user?.name]);
+
   const openThread = (postId) => {
     navigate(`/discussion?view=thread&postId=${postId}`);
   };
+
+  const dashboardStatCards = [
+    {
+      key: "posts",
+      label: "Posts in Scope",
+      value: dashboardMetrics.totalPosts,
+      icon: "P",
+      hint: "Posts after current search/category filters",
+      tint: "rgba(56, 189, 248, 0.18)",
+    },
+    {
+      key: "open",
+      label: "Open Discussions",
+      value: dashboardMetrics.openPosts,
+      icon: "O",
+      hint: "Threads waiting for resolution",
+      tint: "rgba(250, 204, 21, 0.18)",
+    },
+    {
+      key: "resolved",
+      label: "Resolved",
+      value: dashboardMetrics.resolvedPosts,
+      icon: "R",
+      hint: "Threads marked as solved",
+      tint: "rgba(52, 211, 153, 0.18)",
+    },
+    {
+      key: "replies",
+      label: "Replies",
+      value: dashboardMetrics.totalReplies,
+      icon: "C",
+      hint: "Conversation replies across posts",
+      tint: "rgba(167, 139, 250, 0.20)",
+    },
+    {
+      key: "mine",
+      label: "My Contributions",
+      value: dashboardMetrics.myContributions,
+      icon: "M",
+      hint: "Your posts and replies combined",
+      tint: "rgba(34, 197, 94, 0.20)",
+    },
+    {
+      key: "top-category",
+      label: "Top Category",
+      value: dashboardMetrics.topCategory,
+      icon: "T",
+      hint: "Most active category right now",
+      tint: "rgba(244, 114, 182, 0.20)",
+    },
+  ];
 
   return (
     <div style={styles.page}>
@@ -576,87 +705,100 @@ function StudentDiscussion() {
         {successMsg && <div style={styles.success}>{successMsg}</div>}
 
         <div style={styles.controlPanel}>
-          <div style={styles.controlTopRow}>
-            <div style={styles.sectionLabel}>Discussion Views</div>
+          <div style={styles.controlHero}>
+            <div>
+              <div style={styles.controlEyebrow}>Discussion Workspace</div>
+              <div style={styles.controlTitle}>
+                Explore conversations with quick filters
+              </div>
+            </div>
             {activeView !== "thread" && (
               <button
                 style={styles.newPostBtn}
                 onClick={() => setShowForm(!showForm)}
               >
-                {showForm ? "Cancel" : "New Post"}
+                {showForm ? "Close Composer" : "New Post"}
               </button>
             )}
           </div>
 
-          <div style={styles.viewTabs}>
-            {[
-              { key: "feed", label: "Community Feed" },
-              { key: "thread", label: "Thread View" },
-              { key: "mine", label: "My Posts" },
-              { key: "create", label: "Create Post" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                style={{
-                  ...styles.viewTabBtn,
-                  ...(hoveredTab === tab.key && activeView !== tab.key
-                    ? styles.viewTabHover
-                    : {}),
-                  ...(activeView === tab.key ? styles.viewTabActive : {}),
-                  ...(prefersReducedMotion ? styles.reduceMotion : {}),
-                }}
-                onClick={() => navigate(`/discussion?view=${tab.key}`)}
-                onMouseEnter={() => setHoveredTab(tab.key)}
-                onMouseLeave={() =>
-                  setHoveredTab((current) =>
-                    current === tab.key ? "" : current,
-                  )
-                }
-                onFocus={() => setHoveredTab(tab.key)}
-                onBlur={() =>
-                  setHoveredTab((current) =>
-                    current === tab.key ? "" : current,
-                  )
-                }
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div style={styles.searchRow}>
-            <input
-              style={styles.search}
-              placeholder="Search discussions by title, content, or author..."
-              value={searchText}
-              onChange={(e) =>
-                setSearchText(e.target.value.slice(0, SEARCH_MAX_LENGTH))
-              }
-            />
-          </div>
-
-          <div style={styles.sectionLabel}>Categories</div>
-          <div style={styles.categoryRow}>
-            <select
-              style={styles.categorySelect}
-              value={activeCategory}
-              onChange={(e) => setActiveCategory(e.target.value)}
-            >
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat} style={styles.selectOption}>
-                  {cat}
-                </option>
+          <div style={styles.viewTabsRail}>
+            <div style={styles.viewTabs}>
+              {[
+                { key: "dashboard", label: "Dashboard" },
+                { key: "feed", label: "Community Feed" },
+                { key: "thread", label: "Thread View" },
+                { key: "mine", label: "My Posts" },
+                { key: "create", label: "Create Post" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  style={{
+                    ...styles.viewTabBtn,
+                    ...(hoveredTab === tab.key && activeView !== tab.key
+                      ? styles.viewTabHover
+                      : {}),
+                    ...(activeView === tab.key ? styles.viewTabActive : {}),
+                    ...(prefersReducedMotion ? styles.reduceMotion : {}),
+                  }}
+                  onClick={() => navigate(`/discussion?view=${tab.key}`)}
+                  onMouseEnter={() => setHoveredTab(tab.key)}
+                  onMouseLeave={() =>
+                    setHoveredTab((current) =>
+                      current === tab.key ? "" : current,
+                    )
+                  }
+                  onFocus={() => setHoveredTab(tab.key)}
+                  onBlur={() =>
+                    setHoveredTab((current) =>
+                      current === tab.key ? "" : current,
+                    )
+                  }
+                >
+                  {tab.label}
+                </button>
               ))}
-            </select>
-            {activeCategory !== "All" && (
-              <button
-                type="button"
-                style={styles.categoryResetBtn}
-                onClick={() => setActiveCategory("All")}
-              >
-                Clear
-              </button>
-            )}
+            </div>
+          </div>
+
+          <div style={styles.filterGrid}>
+            <div style={styles.fieldGroup}>
+              <div style={styles.fieldLabel}>Search</div>
+              <input
+                style={styles.search}
+                placeholder="Search by title, content, or author"
+                value={searchText}
+                onChange={(e) =>
+                  setSearchText(e.target.value.slice(0, SEARCH_MAX_LENGTH))
+                }
+              />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <div style={styles.fieldLabel}>Category</div>
+              <div style={styles.categoryRow}>
+                <select
+                  style={styles.categorySelect}
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat} style={styles.selectOption}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+                {activeCategory !== "All" && (
+                  <button
+                    type="button"
+                    style={styles.categoryResetBtn}
+                    onClick={() => setActiveCategory("All")}
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -976,8 +1118,151 @@ function StudentDiscussion() {
             </div>
           ))}
 
+        {activeView === "dashboard" && (
+          <>
+            <div style={styles.dashboardStatsGrid}>
+              {dashboardStatCards.map((card) => (
+                <div key={card.key} style={styles.dashboardStatCard}>
+                  <div style={styles.dashboardStatCardHeader}>
+                    <span
+                      style={{
+                        ...styles.dashboardStatIcon,
+                        backgroundColor: card.tint,
+                      }}
+                    >
+                      {card.icon}
+                    </span>
+                    <div style={styles.dashboardStatLabel}>{card.label}</div>
+                  </div>
+                  <div
+                    style={
+                      typeof card.value === "string"
+                        ? styles.dashboardStatValueText
+                        : styles.dashboardStatValue
+                    }
+                  >
+                    {card.value}
+                  </div>
+                  <div style={styles.dashboardStatMeta}>{card.hint}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.dashboardPanel}>
+              <div style={styles.dashboardPanelHeadRow}>
+                <div>
+                  <div style={styles.dashboardPanelTitle}>
+                    Last 7 Days Activity
+                  </div>
+                  <div style={styles.dashboardActivityHint}>
+                    Posts created each day, so you can quickly spot active
+                    periods.
+                  </div>
+                </div>
+                <div style={styles.dashboardActivitySummary}>
+                  <div style={styles.dashboardActivitySummaryItem}>
+                    <span style={styles.dashboardActivitySummaryLabel}>
+                      Total
+                    </span>
+                    <span style={styles.dashboardActivitySummaryValue}>
+                      {dashboardMetrics.activityWeekTotal}
+                    </span>
+                  </div>
+                  <div style={styles.dashboardActivitySummaryItem}>
+                    <span style={styles.dashboardActivitySummaryLabel}>
+                      Peak Day
+                    </span>
+                    <span style={styles.dashboardActivitySummaryValueText}>
+                      {dashboardMetrics.activityPeakDayLabel}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.dashboardTrendRow}>
+                {dashboardMetrics.activityByDay.map((entry) => (
+                  <div
+                    key={`${entry.label}-${entry.dateLabel}`}
+                    style={styles.dashboardTrendItem}
+                    title={`${entry.label} ${entry.dateLabel}: ${entry.value} posts`}
+                  >
+                    <div style={styles.dashboardTrendTopRow}>
+                      <div style={styles.dashboardTrendLabel}>
+                        {entry.label}
+                      </div>
+                      <div style={styles.dashboardTrendValue}>
+                        {entry.value}
+                      </div>
+                    </div>
+                    <div style={styles.dashboardTrendBarTrack}>
+                      <div
+                        style={{
+                          ...styles.dashboardTrendBarFill,
+                          width: `${
+                            dashboardMetrics.activityPeakValue > 0
+                              ? Math.max(
+                                  10,
+                                  (entry.value /
+                                    dashboardMetrics.activityPeakValue) *
+                                    100,
+                                )
+                              : 0
+                          }%`,
+                          opacity: entry.value > 0 ? 1 : 0.35,
+                        }}
+                      />
+                    </div>
+                    <div style={styles.dashboardTrendDate}>
+                      {entry.dateLabel}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={styles.dashboardPanel}>
+              <div style={styles.dashboardPanelHeadRow}>
+                <div style={styles.dashboardPanelTitle}>Recent Discussions</div>
+                <button
+                  type="button"
+                  style={styles.dashboardQuickBtn}
+                  onClick={() => navigate("/discussion?view=create")}
+                >
+                  + Create New
+                </button>
+              </div>
+
+              {searchedPosts.length === 0 ? (
+                <div style={styles.emptyState}>
+                  No discussions available yet.
+                </div>
+              ) : (
+                searchedPosts.slice(0, 5).map((post) => (
+                  <div key={post._id} style={styles.dashboardListItem}>
+                    <div style={styles.dashboardListMain}>
+                      <div style={styles.dashboardListTitle}>{post.title}</div>
+                      <div style={styles.dashboardListMeta}>
+                        {post.category} • {post.author} •{" "}
+                        {new Date(post.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      style={styles.dashboardOpenThreadBtn}
+                      onClick={() => openThread(post._id)}
+                    >
+                      Open Thread
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+
         {/* Community feed / My posts list */}
         {activeView !== "thread" &&
+          activeView !== "dashboard" &&
           (loading ? (
             <div style={styles.emptyState}>Loading posts...</div>
           ) : visiblePosts.length === 0 ? (
@@ -1279,68 +1564,315 @@ const styles = {
   heading: { fontSize: "28px", color: "var(--text)", marginBottom: "6px" },
   subheading: { color: "var(--muted)", marginBottom: "20px" },
   controlPanel: {
-    backgroundColor: "var(--panel)",
+    background:
+      "radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.18), transparent 36%), linear-gradient(130deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.72))",
     border: "1px solid var(--panel-border)",
-    borderRadius: "14px",
-    padding: "16px",
-    marginBottom: "18px",
-    boxShadow: "0 14px 35px rgba(0, 0, 0, 0.14)",
+    borderRadius: "18px",
+    padding: "18px",
+    marginBottom: "20px",
+    boxShadow: "0 18px 40px rgba(0, 0, 0, 0.24)",
     transition: "border-color 180ms ease, box-shadow 220ms ease",
   },
-  controlTopRow: {
+  controlHero: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    gap: "10px",
+    gap: "12px",
     flexWrap: "wrap",
-    marginBottom: "10px",
+    marginBottom: "14px",
   },
-  sectionLabel: {
-    fontSize: "12px",
+  controlEyebrow: {
+    fontSize: "11px",
     textTransform: "uppercase",
-    letterSpacing: "0.06em",
+    letterSpacing: "0.09em",
     fontWeight: "800",
     color: "var(--muted2)",
+  },
+  controlTitle: {
+    fontSize: "16px",
+    color: "var(--text)",
+    fontWeight: "800",
+    marginTop: "3px",
+  },
+  viewTabsRail: {
+    backgroundColor: "rgba(8, 12, 30, 0.42)",
+    border: "1px solid rgba(255, 255, 255, 0.10)",
+    borderRadius: "14px",
+    padding: "8px",
+    marginBottom: "14px",
   },
   viewTabs: {
     display: "flex",
     gap: "8px",
-    flexWrap: "wrap",
-    marginBottom: "12px",
+    flexWrap: "nowrap",
+    overflowX: "auto",
+    overflowY: "visible",
+    padding: "2px 2px 6px",
+    alignItems: "center",
   },
   viewTabBtn: {
-    padding: "9px 14px",
-    minHeight: "38px",
-    borderRadius: "20px",
-    border: "1px solid var(--panel-border)",
+    padding: "9px 15px",
+    minHeight: "40px",
+    borderRadius: "999px",
+    border: "1px solid rgba(255, 255, 255, 0.14)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
     cursor: "pointer",
     fontSize: "13px",
-    color: "var(--muted)",
+    color: "#c4ccdf",
     fontWeight: "700",
+    whiteSpace: "nowrap",
     outline: "none",
-    transform: "translateY(0)",
+    transform: "none",
     boxShadow: "0 0 0 rgba(0, 0, 0, 0)",
     transition:
       "transform 180ms ease, background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 220ms ease",
   },
   viewTabHover: {
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    color: "var(--text)",
-    border: "1px solid rgba(var(--accent2-rgb), 0.35)",
-    transform: "translateY(-1px)",
-    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.20)",
-  },
-  viewTabActive: {
-    backgroundColor: "rgba(var(--accent-rgb), 0.20)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     color: "var(--text)",
     border: "1px solid rgba(var(--accent2-rgb), 0.45)",
-    transform: "translateY(-1px)",
-    boxShadow: "0 6px 14px rgba(var(--accent-rgb), 0.20)",
+    boxShadow: "0 8px 14px rgba(0, 0, 0, 0.2)",
+  },
+  viewTabActive: {
+    backgroundColor: "rgba(var(--accent-rgb), 0.25)",
+    color: "var(--text)",
+    border: "1px solid rgba(var(--accent2-rgb), 0.6)",
+    boxShadow: "0 8px 18px rgba(var(--accent-rgb), 0.28)",
   },
   reduceMotion: {
     transition: "none",
     transform: "none",
+  },
+  filterGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 2fr) minmax(220px, 1fr)",
+    gap: "12px",
+  },
+  fieldGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "6px",
+  },
+  fieldLabel: {
+    fontSize: "11px",
+    textTransform: "uppercase",
+    letterSpacing: "0.08em",
+    fontWeight: "800",
+    color: "var(--muted2)",
+  },
+  dashboardStatsGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: "12px",
+    marginBottom: "16px",
+  },
+  dashboardStatCard: {
+    backgroundColor: "var(--panel)",
+    border: "1px solid var(--panel-border)",
+    borderRadius: "14px",
+    padding: "14px 14px 12px",
+    boxShadow: "0 10px 24px rgba(0, 0, 0, 0.15)",
+  },
+  dashboardStatCardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "8px",
+  },
+  dashboardStatIcon: {
+    width: "22px",
+    height: "22px",
+    borderRadius: "999px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "var(--text)",
+    fontSize: "11px",
+    fontWeight: "900",
+    border: "1px solid rgba(255, 255, 255, 0.22)",
+    flexShrink: 0,
+  },
+  dashboardStatLabel: {
+    fontSize: "11px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    color: "var(--muted2)",
+  },
+  dashboardStatValue: {
+    fontSize: "34px",
+    fontWeight: "900",
+    lineHeight: 1,
+    color: "var(--text)",
+    marginBottom: "8px",
+  },
+  dashboardStatValueText: {
+    fontSize: "24px",
+    fontWeight: "800",
+    lineHeight: 1.2,
+    color: "var(--text)",
+    marginBottom: "8px",
+    wordBreak: "break-word",
+  },
+  dashboardStatMeta: {
+    fontSize: "12px",
+    color: "var(--muted2)",
+    lineHeight: 1.35,
+  },
+  dashboardPanel: {
+    backgroundColor: "var(--panel)",
+    border: "1px solid var(--panel-border)",
+    borderRadius: "14px",
+    padding: "16px",
+    marginBottom: "16px",
+    boxShadow: "0 16px 38px rgba(0, 0, 0, 0.14)",
+  },
+  dashboardPanelHeadRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+    marginBottom: "10px",
+  },
+  dashboardPanelTitle: {
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "var(--text)",
+    marginBottom: "10px",
+  },
+  dashboardActivityHint: {
+    fontSize: "12px",
+    color: "var(--muted2)",
+    marginTop: "-4px",
+  },
+  dashboardActivitySummary: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  dashboardActivitySummaryItem: {
+    border: "1px solid var(--panel-border)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderRadius: "10px",
+    padding: "8px 10px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  dashboardActivitySummaryLabel: {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "var(--muted2)",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  },
+  dashboardActivitySummaryValue: {
+    fontSize: "16px",
+    fontWeight: "900",
+    color: "var(--text)",
+  },
+  dashboardActivitySummaryValueText: {
+    fontSize: "12px",
+    fontWeight: "800",
+    color: "var(--text)",
+  },
+  dashboardTrendRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+    gap: "8px",
+  },
+  dashboardTrendItem: {
+    border: "1px solid var(--panel-border)",
+    borderRadius: "10px",
+    padding: "10px",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  },
+  dashboardTrendTopRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "7px",
+    gap: "8px",
+  },
+  dashboardTrendBarTrack: {
+    width: "100%",
+    height: "8px",
+    borderRadius: "999px",
+    backgroundColor: "rgba(255, 255, 255, 0.09)",
+    overflow: "hidden",
+    marginBottom: "7px",
+  },
+  dashboardTrendBarFill: {
+    height: "100%",
+    borderRadius: "999px",
+    background:
+      "linear-gradient(90deg, rgba(var(--accent-rgb), 0.95), rgba(var(--accent2-rgb), 0.95))",
+    minWidth: "0%",
+    transition: "width 220ms ease",
+  },
+  dashboardTrendValue: {
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "var(--text)",
+  },
+  dashboardTrendLabel: {
+    fontSize: "12px",
+    color: "var(--muted)",
+    fontWeight: "700",
+  },
+  dashboardTrendDate: {
+    fontSize: "11px",
+    color: "var(--muted2)",
+    fontWeight: "600",
+  },
+  dashboardQuickBtn: {
+    border: "1px solid rgba(var(--accent2-rgb), 0.4)",
+    backgroundColor: "rgba(var(--accent-rgb), 0.14)",
+    color: "var(--text)",
+    borderRadius: "10px",
+    padding: "8px 12px",
+    cursor: "pointer",
+    fontWeight: "800",
+    fontSize: "12px",
+  },
+  dashboardListItem: {
+    border: "1px solid var(--panel-border)",
+    borderRadius: "12px",
+    padding: "12px",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "10px",
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
+  },
+  dashboardListMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dashboardListTitle: {
+    fontSize: "15px",
+    fontWeight: "800",
+    color: "var(--text)",
+    marginBottom: "4px",
+    wordBreak: "break-word",
+  },
+  dashboardListMeta: {
+    fontSize: "12px",
+    color: "var(--muted2)",
+  },
+  dashboardOpenThreadBtn: {
+    border: "1px solid rgba(var(--accent2-rgb), 0.4)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    color: "var(--text)",
+    borderRadius: "10px",
+    padding: "8px 12px",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "12px",
+    whiteSpace: "nowrap",
   },
   success: {
     backgroundColor: "rgba(52, 211, 153, 0.12)",
@@ -1354,34 +1886,31 @@ const styles = {
   search: {
     width: "100%",
     padding: "11px 14px",
-    minHeight: "44px",
-    borderRadius: "10px",
-    border: "1.5px solid var(--panel-border)",
+    minHeight: "42px",
+    borderRadius: "12px",
+    border: "1.5px solid rgba(255, 255, 255, 0.16)",
     fontSize: "14px",
     boxSizing: "border-box",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     color: "var(--text)",
   },
-  searchRow: { marginBottom: "12px" },
   categoryRow: {
     display: "flex",
-    gap: "16px",
+    gap: "8px",
     alignItems: "center",
-    marginTop: "8px",
-    marginBottom: "4px",
     flexWrap: "wrap",
   },
   categorySelect: {
     flex: "1 1 auto",
-    minWidth: "220px",
-    minHeight: "40px",
-    borderRadius: "10px",
-    border: "1.5px solid var(--panel-border)",
-    padding: "8px 12px",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    minWidth: "170px",
+    minHeight: "42px",
+    borderRadius: "12px",
+    border: "1.5px solid rgba(255, 255, 255, 0.16)",
+    padding: "8px 10px",
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     color: "var(--text)",
     fontSize: "14px",
-    fontWeight: "700",
+    fontWeight: "600",
     colorScheme: "dark",
   },
   selectInput: {
@@ -1404,27 +1933,27 @@ const styles = {
     color: "#e7eaf2",
   },
   categoryResetBtn: {
-    minHeight: "40px",
-    borderRadius: "10px",
+    minHeight: "42px",
+    borderRadius: "12px",
     border: "1px solid rgba(var(--accent2-rgb), 0.35)",
-    padding: "0 14px",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    padding: "0 12px",
+    backgroundColor: "rgba(var(--accent-rgb), 0.16)",
     cursor: "pointer",
     fontSize: "12px",
-    color: "var(--muted)",
+    color: "var(--text)",
     fontWeight: "700",
   },
   newPostBtn: {
     backgroundColor: "var(--accent)",
     color: "var(--bg)",
     border: "none",
-    padding: "8px 14px",
-    minHeight: "38px",
-    borderRadius: "10px",
+    padding: "10px 14px",
+    minHeight: "42px",
+    borderRadius: "12px",
     cursor: "pointer",
     fontWeight: "800",
     fontSize: "12px",
-    boxShadow: "0 10px 24px rgba(var(--accent-rgb), 0.25)",
+    boxShadow: "0 12px 28px rgba(var(--accent-rgb), 0.30)",
   },
   createCardWrap: {
     overflow: "hidden",
