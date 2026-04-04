@@ -266,12 +266,12 @@ const styles = {
   backBtn: { backgroundColor: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '14px', fontWeight: '700', marginBottom: '10px', padding: 0 },
   heading: { fontSize: '32px', color: 'var(--text)', marginBottom: '8px' },
   subheading: { color: 'var(--muted)', fontSize: '16px' },
-  card: { backgroundColor: 'var(--panel)', borderRadius: '20px', padding: '32px', border: '1px solid var(--panel-border)', boxShadow: '0 25px 50px rgba(0, 0, 0, 0.3)' },
+  card: { backgroundColor: 'var(--surface)', borderRadius: '20px', padding: '32px', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' },
   row: { display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' },
   field: { flex: 1, minWidth: '250px' },
   label: { display: 'block', marginBottom: '8px', fontWeight: '700', fontSize: '13px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px' },
-  input: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid var(--panel-border)', fontSize: '15px', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid var(--panel-border)', fontSize: '15px', backgroundColor: 'rgba(255, 255, 255, 0.03)', color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: '10px' },
+  input: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid var(--border)', fontSize: '15px', backgroundColor: 'var(--surface2)', color: 'var(--text)', outline: 'none', boxSizing: 'border-box' },
+  textarea: { width: '100%', padding: '12px 16px', borderRadius: '12px', border: '1.5px solid var(--border)', fontSize: '15px', backgroundColor: 'var(--surface2)', color: 'var(--text)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: '10px' },
   fileInput: { color: 'var(--muted2)', fontSize: '13px' },
   inputError: { border: '1.5px solid var(--danger)' },
   error: { color: 'var(--danger)', fontSize: '12px', marginTop: '-5px', marginBottom: '15px', display: 'block', fontWeight: '600' },
@@ -285,12 +285,12 @@ const styles = {
     fontWeight: '700',
     border: '1px solid rgba(239, 68, 68, 0.3)'
   },
-  toggleGroup: { display: 'flex', gap: '4px', backgroundColor: 'rgba(255, 255, 255, 0.05)', padding: '4px', borderRadius: '10px', border: '1px solid var(--panel-border)' },
+  toggleGroup: { display: 'flex', gap: '4px', backgroundColor: 'var(--surface2)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border)' },
   toggleBtn: { flex: 1, padding: '8px 12px', border: 'none', borderRadius: '8px', backgroundColor: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: '13px', fontWeight: '700', transition: 'all 0.2s' },
-  toggleActive: { backgroundColor: 'var(--accent)', color: 'var(--bg)' },
+  toggleActive: { backgroundColor: 'var(--accent)', color: '#ffffff' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '30px' },
-  cancelBtn: { padding: '12px 24px', borderRadius: '12px', border: '1px solid var(--panel-border)', backgroundColor: 'transparent', color: 'var(--text)', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
-  submitBtn: { padding: '12px 32px', borderRadius: '12px', border: 'none', backgroundColor: 'var(--accent)', color: 'var(--bg)', cursor: 'pointer', fontWeight: '900', fontSize: '14px', boxShadow: '0 10px 20px rgba(var(--accent-rgb), 0.3)' },
+  cancelBtn: { padding: '12px 24px', borderRadius: '12px', border: '1px solid var(--border)', backgroundColor: 'transparent', color: 'var(--text)', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
+  submitBtn: { padding: '12px 32px', borderRadius: '12px', border: 'none', backgroundColor: 'var(--accent)', color: '#ffffff', cursor: 'pointer', fontWeight: '900', fontSize: '14px', boxShadow: '0 4px 10px rgba(var(--accent-rgb), 0.3)' },
 }
 
 export default PostHelpRequest
