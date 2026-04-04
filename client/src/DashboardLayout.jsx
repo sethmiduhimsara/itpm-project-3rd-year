@@ -148,6 +148,10 @@ function DashboardLayout() {
   const { notifications, unreadCount, markAllRead } = useNotifications();
   const { user, logout, isAdmin } = useAuth();
 
+  const handleToggleDropdown = (label) => {
+    setActiveDropdown((prev) => (prev === label ? null : label));
+  };
+
   useEffect(() => {
     if (pathname.startsWith("/discussion")) {
       setActiveDropdown("Discussion");
@@ -177,21 +181,24 @@ function DashboardLayout() {
     navigate("/login", { replace: true });
   };
 
-
   const navLinks = useMemo(() => {
     if (isAdmin) {
       return [
         { to: "/admin/discussion", label: "Admin Panel", icon: Shield },
-        { to: "/admin/help-requests", label: "Help Requests", icon: HelpCircle }
+        {
+          to: "/admin/help-requests",
+          label: "Help Requests",
+          icon: HelpCircle,
+        },
       ];
     }
     return [];
   }, [isAdmin]);
 
   const resourcesDropdownItems = [
-    { to: '/resources/dashboard', label: 'Dashboard' },
-    { to: '/resources/browse',    label: 'Browse Resources' },
-    { to: '/resources/upload',    label: 'Upload Resource', kind: 'action' },
+    { to: "/resources/dashboard", label: "Dashboard" },
+    { to: "/resources/browse", label: "Browse Resources" },
+    { to: "/resources/upload", label: "Upload Resource", kind: "action" },
   ];
 
   const discussionDropdownItems = [
@@ -207,13 +214,13 @@ function DashboardLayout() {
     // { to: "/progress?tab=badges", label: "Badges" },
     { to: "/progress?tab=progress", label: "Progress" },
   ];
-  
+
   const helpRequestDropdownItems = [
-    { to: '/help-request/dashboard', label: 'My Help Dashboard' },
-    { to: '/help-request', label: 'Browse Requests' },
-    { to: '/help-request/accepted', label: 'My Accepted Tasks' },
-    { to: '/help-request/new', label: 'Post New Request' },
-  ]
+    { to: "/help-request/dashboard", label: "My Help Dashboard" },
+    { to: "/help-request", label: "Browse Requests" },
+    { to: "/help-request/accepted", label: "My Accepted Tasks" },
+    { to: "/help-request/new", label: "Post New Request" },
+  ];
 
   return (
     <div className={`dashboardShell ${sidebarOpen ? "sidebarOpen" : ""}`}>
@@ -237,7 +244,7 @@ function DashboardLayout() {
               active={pathname.startsWith("/discussion")}
               items={discussionDropdownItems}
               activeDropdown={activeDropdown}
-              onToggle={setActiveDropdown}
+              onToggle={handleToggleDropdown}
               onNavigate={() => setSidebarOpen(false)}
               isSubItemActive={isSubItemActive}
             />
@@ -251,7 +258,7 @@ function DashboardLayout() {
               active={pathname.startsWith("/resources")}
               items={resourcesDropdownItems}
               activeDropdown={activeDropdown}
-              onToggle={setActiveDropdown}
+              onToggle={handleToggleDropdown}
               onNavigate={() => setSidebarOpen(false)}
               isSubItemActive={isSubItemActive}
             />
@@ -276,7 +283,7 @@ function DashboardLayout() {
               active={pathname.startsWith("/help-request")}
               items={helpRequestDropdownItems}
               activeDropdown={activeDropdown}
-              onToggle={setActiveDropdown}
+              onToggle={handleToggleDropdown}
               onNavigate={() => setSidebarOpen(false)}
               isSubItemActive={isSubItemActive}
             />
@@ -290,7 +297,7 @@ function DashboardLayout() {
               active={pathname.startsWith("/progress")}
               items={progressDropdownItems}
               activeDropdown={activeDropdown}
-              onToggle={setActiveDropdown}
+              onToggle={handleToggleDropdown}
               onNavigate={() => setSidebarOpen(false)}
               isSubItemActive={isSubItemActive}
             />
