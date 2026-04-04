@@ -100,20 +100,20 @@ function ResourceUpload() {
           <div style={s.row}>
             <div style={{ flex: 1 }}>
               <label style={s.label}>Subject *</label>
-              <select style={s.input} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}>
-                {SUBJECTS.filter(subj => subj !== 'All').map(subj => <option key={subj}>{subj}</option>)}
+              <select style={s.select} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })}>
+                {SUBJECTS.filter(subj => subj !== 'All').map(subj => <option key={subj} style={s.option}>{subj}</option>)}
               </select>
             </div>
             <div style={{ flex: 1 }}>
               <label style={s.label}>Semester *</label>
-              <select style={s.input} value={form.semester} onChange={e => setForm({ ...form, semester: e.target.value })}>
-                {SEMESTERS.filter(sem => sem !== 'All').map(sem => <option key={sem}>{sem}</option>)}
+              <select style={s.select} value={form.semester} onChange={e => setForm({ ...form, semester: e.target.value })}>
+                {SEMESTERS.filter(sem => sem !== 'All').map(sem => <option key={sem} style={s.option}>{sem}</option>)}
               </select>
             </div>
             <div style={{ flex: 1 }}>
               <label style={s.label}>Type *</label>
-              <select style={s.input} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
+              <select style={s.select} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
+                {FILE_TYPES.map(t => <option key={t} style={s.option}>{t}</option>)}
               </select>
             </div>
           </div>
@@ -183,6 +183,8 @@ const s = {
   cardTitle:  { marginBottom: 18, color: 'var(--text)', fontSize: 18, fontWeight: 800 },
   label:      { display: 'block', marginBottom: '5px', fontWeight: 700, fontSize: 13, color: 'var(--muted)', marginTop: 8 },
   input:      { width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid var(--panel-border)', marginBottom: 4, fontSize: 14, boxSizing: 'border-box', backgroundColor: 'rgba(255,255,255,0.04)', color: 'var(--text)' },
+  select:     { width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid rgba(2,132,199,0.45)', marginBottom: 4, fontSize: 14, boxSizing: 'border-box', backgroundColor: '#0d1b2e', color: '#e7eaf2', cursor: 'pointer', outline: 'none' },
+  option:     { backgroundColor: '#0d1b2e', color: '#e7eaf2' },
   textarea:   { width: '100%', padding: '9px 12px', borderRadius: 10, border: '1.5px solid var(--panel-border)', marginBottom: 4, fontSize: 14, resize: 'vertical', boxSizing: 'border-box', backgroundColor: 'rgba(255,255,255,0.04)', color: 'var(--text)' },
   inputErr:   { border: '1.5px solid rgba(251,113,133,0.85)' },
   error:      { color: 'var(--danger)', fontSize: 12, display: 'block', marginBottom: 8, fontWeight: 600 },
