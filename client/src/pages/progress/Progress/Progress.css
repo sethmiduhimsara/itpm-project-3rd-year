@@ -76,7 +76,7 @@
 
 .summary-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(255,255,255,0.13);
+  border-color: rgba(var(--accent-rgb), 0.3);
 }
 
 .summary-card:nth-child(1) { animation-delay: 0.05s; }
