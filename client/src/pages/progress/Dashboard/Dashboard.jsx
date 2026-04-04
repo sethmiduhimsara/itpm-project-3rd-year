@@ -148,7 +148,7 @@ const Dashboard = () => {
 
         <div className="dash-header-right">
           <div className="period-tabs">
-            {['Week', 'Month', 'Semester'].map(p => (
+            {[].map(p => (
               <button
                 key={p}
                 className={`period-tab ${period === p ? 'active' : ''}`}
