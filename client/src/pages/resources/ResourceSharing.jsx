@@ -516,8 +516,8 @@ function ResourceSharing() {
           <div role="dialog" aria-label="Notes viewer" onClick={() => setNotesModal(null)}
             style={styles.modalOverlay}>
             <div onClick={e => e.stopPropagation()} style={{ ...styles.modalBox, maxWidth: 860, width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontWeight: 900, color: 'var(--text)' }}>{notesModal.title}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, color: '#f8fafc', fontSize: '20px', letterSpacing: '-0.025em' }}>{notesModal.title}</div>
                 <button type="button" style={styles.closeModalBtn} onClick={() => setNotesModal(null)}>Close</button>
               </div>
               <pre style={styles.notesContent}>{notesModal.content}</pre>
@@ -607,8 +607,8 @@ const styles = {
   modalBox:           { width: 'min(480px,100%)', background: 'rgba(15, 23, 42, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '24px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', padding: '32px', position: 'relative', overflow: 'hidden' },
   cancelBtn:          { padding: '10px 20px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.1)', backgroundColor: 'rgba(255, 255, 255, 0.05)', color: '#94a3b8', cursor: 'pointer', fontWeight: '700', fontSize: '14px', transition: 'background 0.2s' },
   reportSubmitBtn:    { padding: '10px 20px', borderRadius: '12px', border: 'none', background: 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)', color: 'white', cursor: 'pointer', fontWeight: '800', fontSize: '14px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)', transition: 'transform 0.2s, box-shadow 0.2s' },
-  closeModalBtn:      { backgroundColor: 'rgba(var(--accent2-rgb),0.18)', color: 'var(--text)', border: '1px solid rgba(var(--accent2-rgb),0.35)', padding: '8px 14px', borderRadius: '10px', cursor: 'pointer', fontWeight: '800' },
-  notesContent:       { whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, color: 'var(--text)', lineHeight: 1.5, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 12, maxHeight: '60vh', overflow: 'auto' },
+  closeModalBtn:      { backgroundColor: 'rgba(255, 255, 255, 0.08)', color: '#f8fafc', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '8px 16px', borderRadius: '12px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', transition: 'background 0.2s' },
+  notesContent:       { whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0, color: '#e2e8f0', lineHeight: 1.6, background: 'rgba(0, 0, 0, 0.2)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', padding: '20px', maxHeight: '65vh', overflow: 'auto', fontSize: '15px' },
 }
 
 export default ResourceSharing
