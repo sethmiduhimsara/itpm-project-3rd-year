@@ -78,7 +78,7 @@ function DropdownLink({
     <div className="sidebarDropdownGroup">
       <button
         type="button"
-        className={`sidebarLink ${active ? "sidebarLinkActive" : ""}`}
+        className={`sidebarLink ${active ? "sidebarCategoryActive" : ""}`}
         onClick={() => onToggle(label)}
         aria-expanded={isOpen}
         aria-controls={menuId}
