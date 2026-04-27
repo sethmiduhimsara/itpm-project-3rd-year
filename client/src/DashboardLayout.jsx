@@ -121,13 +121,7 @@ function DropdownLink({
               onClick={onNavigate}
               aria-current={isActive ? "page" : undefined}
             >
-              {item.kind === "action" && <Plus size={14} aria-hidden="true" />}
               {item.label}
-              {item.kind === "action" && (
-                <span className="sidebarActionBadge" aria-hidden="true">
-                  Action
-                </span>
-              )}
             </Link>
           );
         })}
