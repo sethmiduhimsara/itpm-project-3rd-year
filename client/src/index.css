@@ -143,8 +143,15 @@ select {
   color: var(--text);
 }
 
-.sidebarLinkActive {
+.sidebarLinkActive,
+.sidebarSubLinkActive {
   background: #eff6ff;
+  color: var(--text);
+  font-weight: 700;
+  border: 1.5px solid var(--accent);
+}
+
+.sidebarCategoryActive {
   color: var(--accent);
   font-weight: 600;
 }
@@ -201,11 +208,6 @@ select {
   color: var(--text);
 }
 
-.sidebarSubLinkActive {
-  background: #eff6ff;
-  color: var(--accent);
-  font-weight: 600;
-}
 
 .sidebarSubLinkAction {
   background: rgba(var(--accent-rgb), 0.05);
