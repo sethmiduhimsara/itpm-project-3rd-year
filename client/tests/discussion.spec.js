@@ -74,6 +74,13 @@ function createSeedPosts() {
   ];
 }
 
+async function saveShot(page, name) {
+  await page.screenshot({
+    path: `tests/screenshots/${name}.png`,
+    fullPage: true,
+  });
+}
+
 async function installDiscussionApiMocks(page) {
   let mockPosts = createSeedPosts();
 
@@ -280,6 +287,7 @@ test.describe("Student Discussion Module", () => {
       page.getByText("Need help with database normalization"),
     ).toBeVisible();
     await expect(page.getByText("Exam past paper tips")).toBeVisible();
+    await saveShot(page, "discussion-feed");
   });
 
   test("search filters community feed results", async ({ page }) => {
@@ -292,6 +300,7 @@ test.describe("Student Discussion Module", () => {
       page.getByText("Need help with database normalization"),
     ).toBeVisible();
     await expect(page.getByText("Exam past paper tips")).toHaveCount(0);
+    await saveShot(page, "discussion-search");
   });
 
   test("category filter works on feed", async ({ page }) => {
@@ -301,6 +310,7 @@ test.describe("Student Discussion Module", () => {
     await expect(
       page.getByText("Need help with database normalization"),
     ).toHaveCount(0);
+    await saveShot(page, "discussion-category");
   });
 
   test("thread view shows empty prompt when no post selected", async ({
@@ -312,6 +322,7 @@ test.describe("Student Discussion Module", () => {
         "Select a post from Community Feed or My Posts to open a full thread view.",
       ),
     ).toBeVisible();
+    await saveShot(page, "discussion-thread-empty");
   });
 
   test("open thread from feed and add reply", async ({ page }) => {
@@ -323,6 +334,7 @@ test.describe("Student Discussion Module", () => {
     await page.getByRole("button", { name: "Reply" }).click();
 
     await expect(page.getByText("Thanks, this helps a lot.")).toBeVisible();
+    await saveShot(page, "discussion-thread-reply");
   });
 
   test("my posts view shows only logged in user posts", async ({ page }) => {
@@ -333,6 +345,7 @@ test.describe("Student Discussion Module", () => {
       page.getByText("Need help with database normalization"),
     ).toBeVisible();
     await expect(page.getByText("Exam past paper tips")).toHaveCount(0);
+    await saveShot(page, "discussion-my-posts");
   });
 
   test("create post validates and submits successfully", async ({ page }) => {
@@ -358,6 +371,7 @@ test.describe("Student Discussion Module", () => {
     await expect(page.getByText("Post created successfully!")).toBeVisible();
     await page.getByRole("button", { name: "Community Feed" }).click();
     await expect(page.getByText("Playwright created post")).toBeVisible();
+    await saveShot(page, "discussion-create-post");
   });
 
   test("owner can toggle discussion status and non-owner can report", async ({
@@ -379,6 +393,7 @@ test.describe("Student Discussion Module", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "Submit Report" }).click();
     await expect(page.getByText("Post reported successfully.")).toBeVisible();
+    await saveShot(page, "discussion-status-report");
   });
 
   test("dashboard view renders metrics and opens thread from recent list", async ({
@@ -390,5 +405,6 @@ test.describe("Student Discussion Module", () => {
     await expect(page.getByText("Recent Discussions")).toBeVisible();
     await page.getByRole("button", { name: "Open Thread" }).first().click();
     await expect(page).toHaveURL(/view=thread&postId=/);
+    await saveShot(page, "discussion-dashboard");
   });
 });
