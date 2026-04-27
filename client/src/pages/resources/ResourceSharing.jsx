@@ -203,17 +203,16 @@ function ResourceSharing() {
     const e = {}
     const title = form.title.trim()
     const keywords = form.keywords.trim()
-    const acceptableTitle = /^[A-Za-z0-9\s\-_,.]+$/
+    const acceptableTitle = /^[A-Za-z\s]+$/
     const acceptableKeywords = /^[A-Za-z0-9\s,]*$/
 
-    const sanitizedTitle = title.replace(/[^A-Za-z0-9\s\-_,.]/g, '')
+    const sanitizedTitle = title.replace(/[^A-Za-z\s]/g, '')
     const sanitizedKeywords = keywords.replace(/[^A-Za-z0-9\s,]/g, '')
 
     if (!title) e.title = 'Resource title is required.'
     else if (title.length < 3) e.title = 'Title must be at least 3 characters.'
     else if (title.length > 100) e.title = 'Title must be under 100 characters.'
-    else if (!acceptableTitle.test(title)) e.title = 'Title cannot contain special characters.'
-    else if (sanitizedTitle !== title) e.title = 'Title contains invalid characters. Only letters, numbers, space, - _ , . allowed.'
+    else if (!acceptableTitle.test(title)) e.title = 'Title can only include letters and spaces.'
 
     if (keywords && !acceptableKeywords.test(keywords)) {
       e.keywords = 'Keywords may only include letters, numbers, spaces, commas.'
@@ -404,9 +403,16 @@ function ResourceSharing() {
               onKeyDown={e => {
                 const allowedControlKeys = ['Backspace','Tab','ArrowLeft','ArrowRight','Delete','Home','End']
                 if (allowedControlKeys.includes(e.key) || (e.ctrlKey || e.metaKey)) return
-                if (!/^[A-Za-z0-9\s\-_,\.]$/.test(e.key)) e.preventDefault()
+                if (!/^[A-Za-z\s]$/.test(e.key)) {
+                  e.preventDefault()
+                  setErrors(prev => ({ ...prev, title: 'Only letters and spaces are allowed.' }))
+                }
               }}
-              onChange={e => setForm({ ...form, title: e.target.value.replace(/[^A-Za-z0-9\s\-_,.]/g, '') })} />
+              onChange={e => {
+                const val = e.target.value.replace(/[^A-Za-z\s]/g, '');
+                setForm({ ...form, title: val });
+                if (errors.title) setErrors({ ...errors, title: '' });
+              }} />
             {errors.title && <span style={styles.error}>{errors.title}</span>}
 
             <label style={styles.label}>Keywords (optional)</label>
