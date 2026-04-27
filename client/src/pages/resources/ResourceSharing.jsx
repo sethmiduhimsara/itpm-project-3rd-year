@@ -147,7 +147,7 @@ function ResourceCard({ r, user, onLike, onDislike, onReport, onRemove, onViewNo
 
 // ── Main Component ────────────────────────────────────────────────────────────
 function ResourceSharing() {
-  const { addActivity } = useActivities()
+  const { refetchActivities } = useActivities()
   const { user }        = useAuth()
 
   const [resources,       setResources]       = useState([])
@@ -261,7 +261,7 @@ function ResourceSharing() {
       setShowForm(false)
       setSuccessMsg('Resource uploaded successfully! 🎉')
       setTimeout(() => setSuccessMsg(''), 4000)
-      addActivity({ type: 'Resource', description: `Uploaded: ${res.data.title}` })
+      refetchActivities()
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to upload resource')
     }
