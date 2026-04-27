@@ -22,6 +22,7 @@ function ResourceUpload() {
     if (!form.title.trim())                    e.title = 'Resource title is required.'
     else if (form.title.trim().length < 3)     e.title = 'Title must be at least 3 characters.'
     else if (form.title.trim().length > 100)   e.title = 'Title must be under 100 characters.'
+    else if (!/^[A-Za-z\s]+$/.test(form.title.trim())) e.title = 'Title can only include letters and spaces.'
     if (form.type === 'Link') {
       if (!form.url.trim())                    e.url = 'URL is required for Link type.'
       else if (!/^https?:\/\/.+/.test(form.url.trim())) e.url = 'Enter a valid URL starting with http(s)://'
@@ -85,7 +86,19 @@ function ResourceUpload() {
             style={{ ...s.input, ...(errors.title ? s.inputErr : {}) }}
             placeholder="e.g. Database ERD Notes"
             value={form.title}
-            onChange={e => setForm({ ...form, title: e.target.value })}
+            onKeyDown={e => {
+              const allowedControlKeys = ['Backspace','Tab','ArrowLeft','ArrowRight','Delete','Home','End']
+              if (allowedControlKeys.includes(e.key) || (e.ctrlKey || e.metaKey)) return
+              if (!/^[A-Za-z\s]$/.test(e.key)) {
+                e.preventDefault()
+                setErrors(prev => ({ ...prev, title: 'Only letters and spaces are allowed.' }))
+              }
+            }}
+            onChange={e => {
+              const val = e.target.value.replace(/[^A-Za-z\s]/g, '');
+              setForm({ ...form, title: val });
+              if (errors.title) setErrors({ ...errors, title: '' });
+            }}
           />
           {errors.title && <span style={s.error}>{errors.title}</span>}
 
